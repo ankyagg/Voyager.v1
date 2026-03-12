@@ -32,3 +32,14 @@ yarn-error.log*
 
 # Git
 .git/
+
+# Python / AI Engine
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
