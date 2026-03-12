@@ -126,8 +126,86 @@ def generate_itinerary(
     if not raw_dict.get("budget_estimate"):
         raw_dict["budget_estimate"] = budget
 
-    # Step 6 — Validate schema
     itinerary = Itinerary(**raw_dict)
 
     print(f"  Itinerary for {destination} ({duration_days}d) ready.")
+    return itinerary
+
+
+# ── Modification specific logic ────────────────────────────────────────────────
+
+_MOD_ITINERARY_SCHEMA = """\
+{
+  "destination": "<city or region>",
+  "duration_days": <integer>,
+  "budget_estimate": "<amount and currency>",
+  "itinerary": [
+    {
+      "day": 1,
+      "activities": ["<activity 1>", "<activity 2>"]
+    }
+  ]
+}"""
+
+MODIFY_PROMPT_TEMPLATE = """\
+You are an expert travel itinerary modifier.
+
+Current itinerary:
+{existing_itinerary}
+
+User modification request:
+{modification_instruction}
+
+Context & Tool outputs:
+{tool_outputs}
+{rag_context}
+
+Your task:
+- Apply the requested modification exactly as instructed.
+- Only modify the specific target day if indicated. Preserve the structure of the other days unchanged.
+- If it's a budget change, update the budget_estimate.
+- Return the ENTIRE updated itinerary in the exact same JSON format.
+
+STRICT OUTPUT RULES:
+1. Return ONLY valid JSON.
+2. Do NOT write anything before or after the JSON object.
+3. Keep the same number of days.
+4. Follow the schema exactly.
+
+Required JSON schema:
+{schema}
+
+JSON response:"""
+
+def modify_itinerary(
+    existing_itinerary: dict,
+    modification_instruction: dict,
+    rag_context: str = "",
+    tool_outputs: dict | None = None
+) -> Itinerary:
+    import json
+    rag_label = " + RAG context" if rag_context else ""
+    op = modification_instruction.get("operation", "modify")
+    print(f"  Itinerary Agent: applying modification '{op}' {rag_label} ...")
+    
+    prompt = MODIFY_PROMPT_TEMPLATE.format(
+        existing_itinerary=json.dumps(existing_itinerary, ensure_ascii=False, indent=2),
+        modification_instruction=json.dumps(modification_instruction, ensure_ascii=False),
+        tool_outputs=json.dumps(tool_outputs or {}, ensure_ascii=False),
+        rag_context=rag_context if rag_context else "No extra knowledge context.",
+        schema=_MOD_ITINERARY_SCHEMA
+    )
+    
+    raw_response = ollama_client.generate(prompt)
+    raw_dict = extract_and_parse(raw_response)
+    
+    duration = existing_itinerary.get("duration_days", 1)
+    raw_dict = _coerce_itinerary(raw_dict, expected_days=duration)
+    
+    if not raw_dict.get("budget_estimate"):
+        raw_dict["budget_estimate"] = existing_itinerary.get("budget_estimate", "Unknown")
+        
+    itinerary = Itinerary(**raw_dict)
+    
+    print(f"  Modified itinerary for {existing_itinerary.get('destination', 'Unknown')} ready.")
     return itinerary

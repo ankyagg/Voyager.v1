@@ -37,7 +37,16 @@ def _log(step: int, msg: str) -> None:
     print(f"\n[{step}/{TOTAL_STEPS}] {msg}")
 
 
-def run(user_request: str) -> Itinerary:
+def detect_intent(user_request: str) -> str:
+    """Classify the user intent: generate new or modify existing."""
+    modify_keywords = ["remove", "add", "replace", "change", "update", "modify", "reduce", "increase"]
+    req = user_request.lower()
+    if any(kw in req for kw in modify_keywords):
+        return "modify_existing_plan"
+    return "generate_new_plan"
+
+
+def run(user_request: str, existing_itinerary: dict | None = None) -> Itinerary:
     """
     Execute the full Phase-2 agentic RAG planning pipeline.
 
@@ -45,6 +54,8 @@ def run(user_request: str) -> Itinerary:
     ----------
     user_request : str
         Natural language travel request from the user.
+    existing_itinerary : dict | None
+        Optional existing itinerary for interactive modifications.
 
     Returns
     -------
@@ -58,6 +69,11 @@ def run(user_request: str) -> Itinerary:
     ValueError       — LLM returned unparseable JSON.
     RuntimeError     — Any other LLM / HTTP error.
     """
+
+    intent = detect_intent(user_request)
+    if intent == "modify_existing_plan" and existing_itinerary:
+        from services.itinerary_modifier import run_modification
+        return run_modification(user_request, existing_itinerary)
 
     # ── Step 1: Planner Agent ─────────────────────────────────────────────────
     _log(1, "Planner Agent — decomposing request ...")
@@ -151,8 +167,8 @@ def run(user_request: str) -> Itinerary:
     return itinerary
 
 
-def run_as_dict(user_request: str) -> dict:
+def run_as_dict(user_request: str, existing_itinerary: dict | None = None) -> dict:
     """
     Convenience wrapper — returns a plain dict for JSON serialisation.
     """
-    return json.loads(run(user_request).model_dump_json())
+    return json.loads(run(user_request, existing_itinerary).model_dump_json())

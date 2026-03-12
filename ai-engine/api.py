@@ -234,15 +234,9 @@ async def replan(body: ReplanRequest):
     duration = existing.get("duration_days", existing.get("durationDays", 3))
     budget = existing.get("budget_estimate", existing.get("budgetEstimate", "15000 INR"))
 
-    # Build a minimal re-plan request incorporating the existing context
-    replan_request = (
-        f"Plan a {duration} day trip to {destination} under {budget}. "
-        f"Update request: {body.update}"
-    )
-
     try:
         from services.planning_service import run as run_pipeline
-        itinerary = run_pipeline(replan_request)
+        itinerary = run_pipeline(body.update, existing_itinerary=existing)
         return json.loads(itinerary.model_dump_json())
     except Exception as exc:
         logger.error(f"[/api/replan] Error: {exc}", exc_info=True)
