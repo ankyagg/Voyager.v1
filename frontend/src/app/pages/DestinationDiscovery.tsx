@@ -1,5 +1,19 @@
 import { Search, MapPin, Star, Heart, Filter } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import places from "../../data/places.json"
+
+// convert a Wikimedia Commons URL into a smaller thumbnail version
+function wikimediaThumb(origUrl: string, width = 400) {
+  try {
+    const parts = origUrl.split("/commons/");
+    if (parts.length < 2) return origUrl;
+    const filepath = parts[1]; // e.g. "0/09/India_Gate...jpg"
+    const basename = filepath.substring(filepath.lastIndexOf("/") + 1);
+    return `https://upload.wikimedia.org/wikipedia/commons/thumb/${filepath}/${width}px-${basename}`;
+  } catch {
+    return origUrl;
+  }
+}
 
 export default function DestinationDiscovery({ context = "global" }: { context?: "global" | "trip" }) {
   const [saved, setSaved] = useState<number[]>([1, 3]);
@@ -42,62 +56,17 @@ export default function DestinationDiscovery({ context = "global" }: { context?:
     }
   };
 
-  const destinations = [
-    {
-      id: 1,
-      name: "Tanah Lot Temple",
-      location: "Tabanan, Bali",
-      rating: 4.8,
-      reviews: "12k",
-      image: "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&q=80&w=800",
-      category: "Sightseeing"
-    },
-    {
-      id: 2,
-      name: "Potato Head Beach Club",
-      location: "Seminyak, Bali",
-      rating: 4.6,
-      reviews: "8.5k",
-      image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&q=80&w=800",
-      category: "Food & Drinks"
-    },
-    {
-      id: 3,
-      name: "Ubud Monkey Forest",
-      location: "Ubud, Bali",
-      rating: 4.5,
-      reviews: "15k",
-      image: "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&q=80&w=800",
-      category: "Nature"
-    },
-    {
-      id: 4,
-      name: "Tegalalang Rice Terrace",
-      location: "Ubud, Bali",
-      rating: 4.7,
-      reviews: "10k",
-      image: "https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?auto=format&fit=crop&q=80&w=800",
-      category: "Nature"
-    },
-    {
-      id: 5,
-      name: "Locavore",
-      location: "Ubud, Bali",
-      rating: 4.9,
-      reviews: "2.1k",
-      image: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&q=80&w=800",
-      category: "Fine Dining"
-    },
-    {
-      id: 6,
-      name: "Finns Beach Club",
-      location: "Canggu, Bali",
-      rating: 4.5,
-      reviews: "9k",
-      image: "https://images.unsplash.com/photo-1590523265585-236f80f78c11?auto=format&fit=crop&q=80&w=800",
-      category: "Entertainment"
-    }
-  ];
+  const destinations = places.map((p: any, idx: number) => ({
+    id: p["Unnamed: 0"] ?? idx,
+    name: p.Name,
+    location: `${p.City}, ${p.State}`,
+    rating: p["Google review rating"],
+    reviews: "",
+    image: p.image_url
+             ? wikimediaThumb(p.image_url, 400)
+             : "/fallback.png",
+    category: p.Type,
+  }));
 
   return (
     <div 
