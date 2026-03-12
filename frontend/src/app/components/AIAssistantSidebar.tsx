@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Send, Bot, User, RotateCcw, Check, X, Loader2, Sparkles, Zap, Map, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import ReactMarkdown from "react-markdown";
+import { chatWithAI } from "@/lib/aiApi";
 
 interface Message {
   id: string;
@@ -36,12 +38,10 @@ export default function AIAssistantSidebar() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, context: { tripId: "mock-trip-id" } }),
+      const data = await chatWithAI({
+        message: text,
+        context: { tripId: "mock-trip-id" }
       });
-      const data = await response.json();
       const aiMsg: Message = {
         id: Date.now().toString(),
         role: "ai",
@@ -116,7 +116,7 @@ export default function AIAssistantSidebar() {
                     <h3 className="font-heading font-bold text-white">Voyager AI</h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">GPT-4o · Active</span>
+                      <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Ollama llama3 · Active</span>
                     </div>
                   </div>
                 </div>
@@ -161,10 +161,14 @@ export default function AIAssistantSidebar() {
                   <div className={`max-w-[80%] ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col gap-2`}>
                     <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
                       msg.role === "ai"
-                        ? "bg-muted/50 border border-border text-foreground rounded-tl-md"
+                        ? "bg-muted/50 border border-border text-foreground rounded-tl-md [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:list-disc [&>ul]:ml-4 [&>ul]:mb-2 [&>ol]:list-decimal [&>ol]:ml-4 [&>ol]:mb-2 [&_strong]:font-bold"
                         : "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-md shadow-md"
                     }`}>
-                      {msg.content}
+                      {msg.role === "ai" ? (
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                     {msg.role === "ai" && !isLoading && msg.id !== "1" && (
                       <div className="flex gap-2">
@@ -216,7 +220,7 @@ export default function AIAssistantSidebar() {
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground text-center mt-2.5 font-semibold uppercase tracking-widest">
-                Powered by GPT-4o Agentic Engine
+                Powered by Ollama Agentic Engine
               </p>
             </div>
           </motion.div>

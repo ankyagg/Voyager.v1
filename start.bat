@@ -34,7 +34,7 @@ echo ==============================================
 
 :: Start AI Engine (Port 8000)
 echo Starting AI Engine (FastAPI) on port 8000...
-start "Voyager AI Engine" cmd /k "cd ai-engine && call venv\Scripts\activate.bat && python main.py"
+start "Voyager AI Engine" cmd /k "cd ai-engine && call venv\Scripts\activate.bat && uvicorn api:app --host 0.0.0.0 --port 8000 --reload"
 
 :: Start Backend (Port 5000)
 echo Starting Backend (Node.js) on port 5000...
