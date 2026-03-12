@@ -1,101 +1,235 @@
-import { Calendar, Users, MapPin, Plus, Wallet } from "lucide-react";
+import { Calendar, Users, MapPin, Plus, Wallet, ArrowRight, Compass, Sparkles, TrendingUp, Clock } from "lucide-react";
 import { Link } from "react-router";
+import { useAuth } from "../contexts/AuthContext";
+import { useState } from "react";
 
 export default function TripDashboard() {
+  const { dbUser } = useAuth();
+  const firstName = dbUser?.displayName?.split(" ")[0] || "Explorer";
+  const [hoveredTrip, setHoveredTrip] = useState<string | null>(null);
+
   const trips = [
     {
       id: "trip-1",
       name: "Bali Retreat 2026",
-      image: "https://images.unsplash.com/photo-1724568834522-81eb8e5c048c?auto=format&fit=crop&q=80&w=1080",
-      dates: "Oct 12 - Oct 20, 2026",
+      image: "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&q=80&w=1080",
+      dates: "Oct 12 – 20, 2026",
+      daysLeft: 214,
       travelers: 4,
       budget: { spent: 4500, total: 6000 },
-      location: "Bali, Indonesia"
+      location: "Bali, Indonesia",
+      status: "confirmed",
+      statusBg: "bg-emerald-500",
+      statusText: "Confirmed",
+      accentGradient: "from-teal-400 to-cyan-500",
+      barColor: "from-teal-400 to-cyan-400",
     },
     {
       id: "trip-2",
       name: "Tokyo Neon Lights",
-      image: "https://images.unsplash.com/photo-1662107399413-ccaf9bbb1ce9?auto=format&fit=crop&q=80&w=1080",
-      dates: "Dec 5 - Dec 15, 2026",
+      image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=1080",
+      dates: "Dec 5 – 15, 2026",
+      daysLeft: 268,
       travelers: 2,
       budget: { spent: 2100, total: 5000 },
-      location: "Tokyo, Japan"
+      location: "Tokyo, Japan",
+      status: "planning",
+      statusBg: "bg-amber-500",
+      statusText: "Planning",
+      accentGradient: "from-pink-500 to-rose-500",
+      barColor: "from-amber-400 to-orange-400",
     },
     {
       id: "trip-3",
       name: "Paris Getaway",
       image: "https://images.unsplash.com/photo-1431274172761-fca41d930114?auto=format&fit=crop&q=80&w=1080",
-      dates: "May 1 - May 8, 2026",
+      dates: "May 1 – 8, 2026",
+      daysLeft: 50,
       travelers: 3,
       budget: { spent: 1200, total: 3500 },
-      location: "Paris, France"
+      location: "Paris, France",
+      status: "upcoming",
+      statusBg: "bg-indigo-500",
+      statusText: "Upcoming",
+      accentGradient: "from-indigo-500 to-purple-600",
+      barColor: "from-indigo-400 to-purple-400",
     }
   ];
 
+  const quickStats = [
+    { icon: MapPin, label: "Active Trips", value: "3", iconBg: "bg-white/20" },
+    { icon: Users, label: "Travel Partners", value: "9", iconBg: "bg-white/20" },
+    { icon: TrendingUp, label: "Total Budget", value: "$14.5k", iconBg: "bg-white/20" },
+    { icon: Clock, label: "Next Trip", value: "50d", iconBg: "bg-white/20" },
+  ];
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold font-heading text-foreground">My Trips</h1>
-          <p className="text-muted-foreground mt-1">Manage all your upcoming and past adventures.</p>
+    <div className="min-h-full bg-[#F5F4F8] dark:bg-[#0D0D1A]">
+
+      {/* ===== HERO HEADER ===== */}
+      <div className="relative pt-12 pb-28 px-8 border-b border-border/40">
+        {/* Background gradient/image blend */}
+        <div className="absolute inset-0 bg-background dark:bg-[#0D0D1A]" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-5 dark:opacity-[0.03] mix-blend-luminosity" />
+        <div className="absolute inset-0 bg-gradient-to-b from-indigo-50/50 via-transparent to-transparent dark:from-indigo-950/20" />
+
+        <div className="relative max-w-7xl mx-auto">
+          {/* Top row */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Compass size={14} className="text-indigo-600 dark:text-indigo-400" />
+                <span className="text-indigo-600 dark:text-indigo-400 text-[11px] font-bold uppercase tracking-[0.15em]">My Workspace</span>
+              </div>
+              <h1 className="text-3xl md:text-5xl font-bold font-heading text-foreground leading-tight tracking-tight">
+                {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">{firstName}! 👋</span>
+              </h1>
+              <p className="text-muted-foreground mt-2 text-base font-medium">
+                You have {trips.length} trips in progress — let's make them perfect.
+              </p>
+            </div>
+
+            <button className="self-start md:self-auto flex items-center gap-2.5 bg-foreground text-background dark:bg-white dark:text-black px-6 py-3.5 rounded-[1.25rem] font-bold text-sm hover:scale-105 transition-transform shadow-xl shadow-black/5">
+              <Plus size={16} />
+              Plan New Trip
+            </button>
+          </div>
+
+          {/* Stats Row — Clean bordered cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {quickStats.map((stat, i) => (
+              <div
+                key={i}
+                className="rounded-2xl p-5 bg-card/60 backdrop-blur-xl border border-border/60 shadow-lg shadow-indigo-900/5 dark:shadow-black/20"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20">
+                  <stat.icon size={18} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <p className="text-3xl font-bold font-heading text-foreground leading-none mb-1.5">{stat.value}</p>
+                <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <button className="bg-blue-600 text-white px-5 py-2.5 rounded-full font-medium hover:bg-blue-700 transition-all shadow-md flex items-center gap-2">
-          <Plus size={18} /> Create New Trip
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {trips.map(trip => (
-          <div key={trip.id} className="bg-card rounded-[1.25rem] overflow-hidden shadow-sm border border-border group hover:shadow-xl transition-all hover:-translate-y-1 duration-300">
-            <div className="relative h-48 overflow-hidden">
-              <img 
-                src={trip.image} 
-                alt={trip.name} 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 left-4 bg-card/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-card-foreground flex items-center gap-1.5 border border-border">
-                <MapPin size={12} className="text-blue-600" /> {trip.location}
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <h3 className="font-heading font-bold text-xl text-foreground mb-4">{trip.name}</h3>
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar size={16} className="text-muted-foreground mr-3" />
-                  {trip.dates}
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Users size={16} className="text-muted-foreground mr-3" />
-                  {trip.travelers} Travelers
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Wallet size={16} className="text-[#2A9D8F] mr-3" />
-                  <div className="flex-1">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-medium text-foreground">${trip.budget.spent} spent</span>
-                      <span className="text-muted-foreground">of ${trip.budget.total}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-[#2A9D8F] rounded-full" 
-                        style={{ width: `${(trip.budget.spent / trip.budget.total) * 100}%` }}
-                      ></div>
+      {/* ===== TRIP CARDS ===== */}
+      <div className="max-w-7xl mx-auto px-8 -mt-20 pb-16 relative z-10">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold font-heading text-gray-900 dark:text-white">Your Trips</h2>
+            <span className="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              {trips.length}
+            </span>
+          </div>
+          <button className="text-xs font-bold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-white/5 transition-colors">
+            Sort by date ↓
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {trips.map(trip => {
+            const pct = Math.round((trip.budget.spent / trip.budget.total) * 100);
+            const isOver80 = pct > 80;
+
+            return (
+              <div
+                key={trip.id}
+                onMouseEnter={() => setHoveredTrip(trip.id)}
+                onMouseLeave={() => setHoveredTrip(null)}
+                className="group bg-white dark:bg-[#13132B] rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-white/5 hover:shadow-2xl hover:shadow-indigo-200/30 dark:hover:shadow-indigo-900/20 transition-all duration-500 hover:-translate-y-2 flex flex-col"
+              >
+                {/* Image */}
+                <div className="relative h-52 overflow-hidden shrink-0">
+                  <img
+                    src={trip.image}
+                    alt={trip.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                  {/* Status pill */}
+                  <div className={`absolute top-3.5 left-3.5 ${trip.statusBg} text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-lg`}>
+                    {trip.statusText}
+                  </div>
+
+                  {/* Days away */}
+                  <div className="absolute top-3.5 right-3.5 bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border border-white/10">
+                    <Clock size={11} /> {trip.daysLeft}d away
+                  </div>
+
+                  {/* Trip name overlay */}
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-white font-bold font-heading text-lg leading-tight drop-shadow-lg">{trip.name}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin size={11} className="text-white/70" />
+                      <p className="text-white/70 text-xs font-medium">{trip.location}</p>
                     </div>
                   </div>
+
+                  {/* AI sparkle badge */}
+                  <div className={`absolute bottom-4 right-4 w-9 h-9 bg-gradient-to-br ${trip.accentGradient} rounded-xl flex items-center justify-center shadow-lg transition-transform duration-300 ${hoveredTrip === trip.id ? "scale-110 rotate-6" : ""}`}>
+                    <Sparkles size={15} className="text-white" />
+                  </div>
+                </div>
+
+                {/* Card body */}
+                <div className="p-5 flex-1 flex flex-col">
+                  {/* Meta pills */}
+                  <div className="grid grid-cols-2 gap-2.5 mb-4">
+                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                      <Calendar size={13} className="text-indigo-500 shrink-0" />
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{trip.dates}</span>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                      <Users size={13} className="text-teal-500 shrink-0" />
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{trip.travelers} travelers</span>
+                    </div>
+                  </div>
+
+                  {/* Budget bar */}
+                  <div className="mb-5">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Wallet size={12} className={isOver80 ? "text-red-500" : "text-teal-500"} />
+                        <span className="text-xs font-bold text-gray-900 dark:text-white">${trip.budget.spent.toLocaleString()}</span>
+                        <span className="text-xs text-gray-400"> / ${trip.budget.total.toLocaleString()}</span>
+                      </div>
+                      <span className={`text-xs font-bold ${isOver80 ? "text-red-500" : "text-teal-600 dark:text-teal-400"}`}>{pct}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${isOver80 ? "from-red-400 to-red-500" : trip.barColor} transition-all duration-1000`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Open Trip CTA */}
+                  <Link
+                    to={`/dashboard/trips/${trip.id}`}
+                    className="mt-auto flex items-center justify-between w-full py-3 px-4 bg-indigo-50 hover:bg-indigo-600 dark:bg-indigo-950/50 dark:hover:bg-indigo-600 text-indigo-700 hover:text-white dark:text-indigo-300 dark:hover:text-white font-bold text-sm rounded-2xl transition-all duration-300 group/btn border border-indigo-100 dark:border-indigo-900/50 hover:border-indigo-600 hover:shadow-lg hover:shadow-indigo-200/50"
+                  >
+                    <span>Open Trip</span>
+                    <ArrowRight size={15} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </Link>
                 </div>
               </div>
+            );
+          })}
 
-              <Link 
-                to={`/dashboard/trips/${trip.id}`} 
-                className="block w-full py-2.5 bg-secondary hover:bg-blue-600 hover:text-white text-foreground font-medium text-center rounded-xl transition-all border border-border"
-              >
-                Open Trip
-              </Link>
+          {/* Add New Trip placeholder */}
+          <div className="bg-white dark:bg-[#13132B] rounded-3xl border-2 border-dashed border-gray-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-700 flex flex-col items-center justify-center min-h-[420px] cursor-pointer group transition-all hover:shadow-xl hover:-translate-y-2 duration-500">
+            <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-dashed border-indigo-200 dark:border-indigo-800 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 transition-all duration-300">
+              <Plus size={28} className="text-indigo-400 group-hover:text-indigo-600" />
             </div>
+            <p className="font-bold text-gray-800 dark:text-white text-base font-heading">Plan new adventure</p>
+            <p className="text-gray-400 text-sm mt-1 text-center max-w-[160px]">Start your next dream trip</p>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

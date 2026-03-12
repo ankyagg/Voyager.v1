@@ -24,7 +24,7 @@ export default function ItineraryPlanner() {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto flex gap-8 flex-col lg:flex-row h-[calc(100vh-200px)]">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto flex gap-6 lg:gap-8 flex-col lg:flex-row h-auto min-h-[800px] lg:h-[1000px] mb-12">
       {/* Saved Destinations Sidebar */}
       <div className="w-full lg:w-80 bg-white rounded-[1.25rem] border border-gray-100 flex flex-col shrink-0 shadow-sm h-full">
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 rounded-t-[1.25rem] shrink-0 flex justify-between items-center">
