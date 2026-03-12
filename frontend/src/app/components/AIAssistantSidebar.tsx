@@ -67,7 +67,7 @@ export default function AIAssistantSidebar() {
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-7 right-7 w-16 h-16 bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 text-white rounded-2xl shadow-2xl shadow-indigo-400/40 flex items-center justify-center z-50 group"
+        className="fixed bottom-7 right-7 w-16 h-16 bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-700 text-white rounded-2xl shadow-2xl shadow-indigo-400/40 flex items-center justify-center z-[70] group"
       >
         <AnimatePresence mode="wait">
           {isOpen ? (
@@ -101,7 +101,7 @@ export default function AIAssistantSidebar() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 250 }}
-            className="fixed top-0 right-0 h-full w-full md:w-[400px] bg-card dark:bg-card shadow-[-20px_0_60px_rgba(0,0,0,0.12)] z-40 flex flex-col border-l border-border"
+            className="fixed top-0 right-0 h-full w-full md:w-[400px] bg-card dark:bg-card shadow-[-20px_0_60px_rgba(0,0,0,0.12)] z-[60] flex flex-col border-l border-border"
           >
             {/* Header */}
             <div className="relative overflow-hidden shrink-0">

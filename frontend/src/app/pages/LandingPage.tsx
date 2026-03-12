@@ -1,4 +1,4 @@
-import { ArrowRight, Compass, Map, Users, Plane, Star, Zap, Globe, ChevronDown } from "lucide-react";
+import { ArrowRight, Compass, Map, Users, Star, Zap, Globe, ChevronDown } from "lucide-react";
 import { Link } from "react-router";
 import { useEffect, useRef } from "react";
 
@@ -103,12 +103,7 @@ export default function LandingPage() {
           <Link to="/login" className="text-sm font-semibold text-gray-600 hover:text-indigo-600 transition-colors px-4 py-2 rounded-xl hover:bg-indigo-50">
             Log in
           </Link>
-          <Link
-            to="/dashboard"
-            className="text-sm font-bold bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200/60 hover:shadow-indigo-300/60 hover:-translate-y-0.5 flex items-center gap-2"
-          >
-            Get Started <ArrowRight size={15} />
-          </Link>
+
         </div>
       </header>
 
@@ -154,13 +149,6 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-start gap-4">
-                <Link
-                  to="/dashboard"
-                  className="bg-white text-indigo-700 px-8 py-4 rounded-2xl font-bold text-base hover:bg-indigo-50 transition-all shadow-2xl shadow-black/20 hover:-translate-y-1 flex items-center gap-3 group"
-                >
-                  Plan My First Trip
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
                 <a
                   href="#features"
                   className="bg-white/10 backdrop-blur-sm text-white border border-white/20 px-8 py-4 rounded-2xl font-bold text-base hover:bg-white/20 transition-all flex items-center gap-3"
@@ -355,14 +343,6 @@ export default function LandingPage() {
               <p className="text-white/70 text-lg mb-10 max-w-lg mx-auto">
                 Create your free workspace, invite your friends, and let Voyager AI handle the heavy lifting.
               </p>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-3 bg-white text-indigo-700 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-indigo-50 transition-all shadow-2xl hover:-translate-y-1 group"
-              >
-                <Plane size={22} />
-                Start Planning Free
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
             </div>
           </div>
         </section>

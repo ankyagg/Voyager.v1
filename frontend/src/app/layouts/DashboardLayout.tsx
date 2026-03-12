@@ -1,4 +1,4 @@
-import { Compass, LayoutDashboard, MapPin, Wallet, Settings, Bell, Map, Moon, Sun, LogOut, ChevronRight } from "lucide-react";
+import { Compass, LayoutDashboard, Wallet, Settings, Bell, Map, Moon, Sun, LogOut, ChevronRight } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useTheme } from "next-themes";
 import { useAuth } from "../contexts/AuthContext";
@@ -117,22 +117,24 @@ export default function DashboardLayout() {
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Topbar actions */}
-        <div className="absolute top-0 right-0 p-4 z-50 flex items-center gap-2">
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2.5 text-muted-foreground hover:text-foreground rounded-xl hover:bg-card border border-transparent hover:border-border transition-all shadow-sm"
-            title="Toggle theme"
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <button className="p-2.5 text-muted-foreground hover:text-foreground rounded-xl hover:bg-card border border-transparent hover:border-border transition-all shadow-sm relative">
-            <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background" />
-          </button>
-        </div>
+        {/* Topbar sticky header */}
+        <header className="sticky top-0 z-40 flex items-center justify-end px-6 py-3 bg-background/50 backdrop-blur-md border-b border-border/10 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full bg-white dark:bg-card border border-border/60 hover:border-border transition-all shadow-sm group"
+              title="Toggle theme"
+            >
+              {theme === "dark" ? <Sun size={18} className="group-hover:rotate-12 transition-transform" /> : <Moon size={18} className="group-hover:-rotate-12 transition-transform" />}
+            </button>
+            <button className="w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full bg-white dark:bg-card border border-border/60 hover:border-border transition-all shadow-sm relative group">
+              <Bell size={18} className="group-hover:animate-shake" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-card" />
+            </button>
+          </div>
+        </header>
 
-        <div className="flex-1 overflow-auto bg-background">
+        <div className="flex-1 overflow-auto bg-background custom-scrollbar">
           <Outlet />
         </div>
 
