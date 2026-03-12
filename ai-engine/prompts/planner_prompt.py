@@ -27,7 +27,9 @@ _PLANNER_SCHEMA = """\
   "tasks": [
     "retrieve destination knowledge",
     "get attractions",
-    "estimate budget breakdown",
+    "get restaurants",
+    "get hotels",
+    "estimate budget",
     "generate day-wise itinerary"
   ]
 }"""
@@ -44,6 +46,8 @@ Your job:
    Typical tasks include (use exact wording if applicable):
    - "retrieve destination knowledge"
    - "get attractions"
+   - "get restaurants"
+   - "get hotels"
    - "estimate budget"
    - "get weather info"
    - "get travel tips"

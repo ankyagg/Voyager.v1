@@ -25,12 +25,13 @@ if _ENGINE_ROOT not in sys.path:
 from agents import planner_agent
 from agents import itinerary_agent
 from tools import destination_tool, attraction_tool, budget_tool
-from tools import weather_tool, travel_tip_tool     # Phase 2 new tools
+from tools import weather_tool, travel_tip_tool
+from tools import restaurant_tool, hotel_tool       # Phase 5 tools
 from services.rag_service import build_rag_context, is_rag_ready
 from schemas.itinerary_schema import Itinerary
 
 
-TOTAL_STEPS = 8
+TOTAL_STEPS = 10
 
 
 def _log(step: int, msg: str) -> None:
@@ -114,13 +115,34 @@ def run(user_request: str, existing_itinerary: dict | None = None) -> Itinerary:
     # ── Step 4: attraction_tool ───────────────────────────────────────────────
     _log(4, "Tool: attraction_tool — fetching top attractions ...")
     if any("attraction" in t for t in task_list):
-        attractions = attraction_tool.get_attractions(destination, limit=8)
-        print(f"  {len(attractions)} attractions retrieved.")
+        fetched_attr = attraction_tool.get_attractions(destination, limit=8)
+        attractions.extend(fetched_attr)
+        print(f"  {len(fetched_attr)} attractions retrieved.")
     else:
         print("  Skipped based on planner tasks.")
 
-    # ── Step 5: budget_tool ───────────────────────────────────────────────────
-    _log(5, "Tool: budget_tool — estimating costs ...")
+    # ── Step 5: restaurant_tool ───────────────────────────────────────────────
+    _log(5, "Tool: restaurant_tool — fetching top restaurants ...")
+    if any("restaurant" in t for t in task_list):
+        rests = restaurant_tool.search_restaurants(destination, budget=2000)
+        for r in rests:
+            attractions.append(f"{r['name']} (Restaurant, {r['cuisines']}, {r['rating']}★)")
+        print(f"  {len(rests)} restaurants retrieved.")
+    else:
+        print("  Skipped based on planner tasks.")
+        
+    # ── Step 6: hotel_tool ───────────────────────────────────────────────
+    _log(6, "Tool: hotel_tool — fetching top hotels ...")
+    if any("hotel" in t for t in task_list):
+        hotels = hotel_tool.search_hotels(destination)
+        for h in hotels:
+            attractions.append(f"{h['name']} (Hotel, {h['stars']}★, {h['rating']} rating)")
+        print(f"  {len(hotels)} hotels retrieved.")
+    else:
+        print("  Skipped based on planner tasks.")
+
+    # ── Step 7: budget_tool ───────────────────────────────────────────────────
+    _log(7, "Tool: budget_tool — estimating costs ...")
     if any("budget" in t for t in task_list):
         budget_info = budget_tool.estimate_budget(
             destination=destination,
@@ -133,24 +155,24 @@ def run(user_request: str, existing_itinerary: dict | None = None) -> Itinerary:
     else:
         print("  Skipped based on planner tasks.")
 
-    # ── Step 6: weather_tool ──────────────────────────────────────────────────
-    _log(6, "Tool: weather_tool — fetching weather info ...")
+    # ── Step 8: weather_tool ──────────────────────────────────────────────────
+    _log(8, "Tool: weather_tool — fetching weather info ...")
     if any("weather" in t for t in task_list):
         weather_info = weather_tool.get_weather(destination)
         print(f"  {weather_info['month']}: {weather_info['temp_c']}°C, {weather_info['condition']}")
     else:
         print("  Skipped based on planner tasks.")
 
-    # ── Step 7: travel_tip_tool ───────────────────────────────────────────────
-    _log(7, "Tool: travel_tip_tool — fetching local tips ...")
+    # ── Step 9: travel_tip_tool ───────────────────────────────────────────────
+    _log(9, "Tool: travel_tip_tool — fetching local tips ...")
     if any("tip" in t for t in task_list):
         tips = travel_tip_tool.get_travel_tips(destination, limit=4)
         print(f"  Added {len(tips)} tips.")
     else:
         print("  Skipped based on planner tasks.")
 
-    # ── Step 8: Itinerary Agent ───────────────────────────────────────────────
-    _log(8, "Itinerary Agent — generating constraint-aware day-by-day plan ...")
+    # ── Step 10: Itinerary Agent ───────────────────────────────────────────────
+    _log(10, "Itinerary Agent — generating constraint-aware day-by-day plan ...")
     itinerary = itinerary_agent.generate_itinerary(
         destination=destination,
         duration_days=duration_days,

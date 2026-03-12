@@ -34,6 +34,8 @@ from schemas.task_schema import TaskPlan
 _DEFAULT_TASKS = [
     "retrieve destination knowledge",
     "get attractions",
+    "get restaurants",
+    "get hotels",
     "estimate budget",
     "get weather info",
     "get travel tips",
