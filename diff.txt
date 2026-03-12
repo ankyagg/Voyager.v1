@@ -1,0 +1,21 @@
+DIFF: \main.tsx
+MISSING: \vite-env.d.ts
+DIFF: \app\routes.tsx
+DIFF: \app\components\ItineraryPlanner.tsx
+MISSING: \app\contexts\AuthContext.tsx
+DIFF: \app\layouts\DashboardLayout.tsx
+MISSING: \app\pages\AuthPage.tsx
+DIFF: \app\pages\BudgetTracker.tsx
+DIFF: \app\pages\DestinationDiscovery.tsx
+DIFF: \app\pages\TripDashboard.tsx
+DIFF: \app\pages\TripWorkspace.tsx
+MISSING: \components\ui\button.tsx
+MISSING: \components\ui\map.tsx
+MISSING: \lib\appwrite.ts
+MISSING: \lib\firebase.ts
+MISSING: \lib\storage.ts
+MISSING: \lib\utils.ts
+DIFF: \styles\tailwind.css
+DIFF: \styles\theme.css
+NEW IN ARPITA: \app\components\AIAssistantSidebar.tsx
+NEW IN ARPITA: \app\imports\socket.ts

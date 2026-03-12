@@ -1,12 +1,11 @@
-import { Compass, Home, MapPin, Wallet, Sparkles, Settings, User, Bell, Map, ChevronDown, Moon, Sun } from "lucide-react";
+import { Compass, Home, MapPin, Wallet, Settings, User, Bell, Map, Moon, Sun } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router";
-import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useAuth } from "../contexts/AuthContext";
+import AIAssistantSidebar from "../components/AIAssistantSidebar";
 
 export default function DashboardLayout() {
   const location = useLocation();
-  const [aiOpen, setAiOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { dbUser } = useAuth();
 
@@ -57,13 +56,6 @@ export default function DashboardLayout() {
 
           <nav className="px-4 py-6 space-y-1 mt-6 border-t border-gray-100">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-3">Tools</div>
-            <button
-              onClick={() => setAiOpen(!aiOpen)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all text-gray-600 hover:bg-[#2A9D8F]/10 hover:text-[#2A9D8F] group"
-            >
-              <Sparkles size={18} className="text-[#2A9D8F] group-hover:text-[#2A9D8F]" />
-              AI Assistant
-            </button>
             <Link
               to="/dashboard/settings"
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all text-gray-600 hover:bg-gray-50 hover:text-gray-900 group"
@@ -110,72 +102,8 @@ export default function DashboardLayout() {
         </div>
 
         {/* Floating AI Assistant Widget */}
-        {aiOpen && (
-          <div className="absolute bottom-6 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col h-[500px] z-50">
-            <div className="p-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles size={18} />
-                <span className="font-heading font-semibold">Voyager AI</span>
-              </div>
-              <button onClick={() => setAiOpen(false)} className="text-white/80 hover:text-white">
-                <ChevronDown size={20} />
-              </button>
-            </div>
-            
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50 text-sm">
-              <div className="bg-white p-3 rounded-xl rounded-tl-sm border border-gray-100 shadow-sm max-w-[85%] text-gray-800 leading-relaxed">
-                Hi {dbUser?.displayName?.split(" ")[0] || "there"}! I'm your travel assistant. How can I help you plan your next adventure?
-              </div>
-              
-              <div className="space-y-2 mt-4">
-                <p className="text-xs text-gray-400 font-medium px-2">Try asking:</p>
-                <button className="w-full text-left p-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium">
-                  "Plan a 3-day trip to Goa under ₹15000"
-                </button>
-                <button className="w-full text-left p-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium">
-                  "Suggest restaurants near our hotel"
-                </button>
-                <button className="w-full text-left p-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium">
-                  "Optimize this itinerary"
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 bg-white border-t border-gray-100">
-              <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="Ask Voyager AI..." 
-                  className="w-full bg-gray-100 border-none rounded-full py-2.5 pl-4 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                />
-                <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700">
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <AIAssistantSidebar />
       </main>
     </div>
   );
-}
-
-function ArrowRight(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="m12 5 7 7-7 7" />
-    </svg>
-  )
 }
