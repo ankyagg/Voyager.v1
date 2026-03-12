@@ -1,0 +1,5 @@
+src/app/pages/BudgetTracker.tsx(4,22): error TS6133: 'Plane' is declared but its value is never read.
+src/app/pages/BudgetTracker.tsx(4,29): error TS6133: 'Hotel' is declared but its value is never read.
+src/app/pages/BudgetTracker.tsx(4,36): error TS6133: 'Coffee' is declared but its value is never read.
+src/app/pages/BudgetTracker.tsx(4,44): error TS6133: 'Compass' is declared but its value is never read.
+src/app/pages/BudgetTracker.tsx(4,59): error TS6133: 'MoreHorizontal' is declared but its value is never read.

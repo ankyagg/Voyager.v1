@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Send, Bot, User, RotateCcw, Check, X, Loader2, Sparkles, Zap, Map, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import { chatWithAI } from "@/lib/aiApi";
+import { ItineraryContext } from "../contexts/ItineraryContext";
+import { useTrips } from "../contexts/TripContext";
+import { useParams } from "react-router";
 
 interface Message {
   id: string;
@@ -18,6 +21,10 @@ const QUICK_PROMPTS = [
 
 export default function AIAssistantSidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const itineraryCtx = useContext(ItineraryContext);
+  const { tripId } = useParams<{ tripId?: string }>();
+  const { trips } = useTrips();
+  const currentTrip = trips.find(t => t.id === tripId) ?? null;
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -40,7 +47,13 @@ export default function AIAssistantSidebar() {
     try {
       const data = await chatWithAI({
         message: text,
-        context: { tripId: "mock-trip-id" }
+        context: {
+          tripId: currentTrip?.id || "",
+          destination: currentTrip?.location || "",
+          travelers: String((currentTrip?.participantIds?.length || 0) + 1),
+          budget: currentTrip?.budget ? `₹${currentTrip.budget}` : "",
+          savedPlaces: currentTrip?.savedPlaces ?? [],
+        }
       });
       const aiMsg: Message = {
         id: Date.now().toString(),
@@ -172,10 +185,21 @@ export default function AIAssistantSidebar() {
                     </div>
                     {msg.role === "ai" && !isLoading && msg.id !== "1" && (
                       <div className="flex gap-2">
-                        <button className="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                        <button
+                          onClick={() => {
+                            if (itineraryCtx) {
+                              itineraryCtx.applyFromMarkdown(msg.content);
+                              setIsOpen(false);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                        >
                           <Check size={12} /> Apply
                         </button>
-                        <button className="flex items-center gap-1.5 bg-muted border border-border text-muted-foreground text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-accent hover:text-foreground transition-colors">
+                        <button
+                          onClick={() => handleSend("Replan with different activities.")} 
+                          className="flex items-center gap-1.5 bg-muted border border-border text-muted-foreground text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-accent hover:text-foreground transition-colors"
+                        >
                           <RotateCcw size={12} /> Replan
                         </button>
                       </div>

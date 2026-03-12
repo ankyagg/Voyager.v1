@@ -63,6 +63,9 @@ class PlanRequest(BaseModel):
         description="Natural language travel request",
         example="Plan a 4 day trip to Goa under 20000 INR with beaches and nightlife",
     )
+    group_preferences: dict = Field(default_factory=dict, description="Group poll votes (e.g. {'adventure': 3, 'food': 1})")
+    accepted_suggestions: list = Field(default_factory=list, description="Suggestions voted to be included")
+    participants_count: int = Field(default=1, description="Number of trip participants")
 
 
 class ChatRequest(BaseModel):
@@ -137,9 +140,20 @@ async def plan_itinerary(body: PlanRequest):
     """
     logger.info(f"[/api/plan] Request: {body.request[:80]}...")
 
+    # ── Inject Collaborative Context ──────────────────────────────────────────
+    collab_context = ""
+    if body.participants_count > 1:
+        collab_context += f"\n\n[COLLABORATIVE TRIP: {body.participants_count} participants]"
+        if body.group_preferences:
+            collab_context += f"\nGroup Preferences Poll: {json.dumps(body.group_preferences)}. Balance the itinerary to reflect these preferences safely."
+        if body.accepted_suggestions:
+            collab_context += f"\nREQUIRED ACTIVITIES (Must Include): {', '.join(body.accepted_suggestions)}."
+            
+    enhanced_request = body.request + collab_context
+
     try:
         from services.planning_service import run as run_pipeline
-        itinerary = run_pipeline(body.request)
+        itinerary = run_pipeline(enhanced_request)
         result = json.loads(itinerary.model_dump_json())
         logger.info(f"[/api/plan] Itinerary generated for: {result.get('destination', '?')}")
         return result
@@ -178,22 +192,126 @@ async def chat(body: ChatRequest):
     """
     logger.info(f"[/api/chat] Message: {body.message[:60]}...")
 
-    # Build a travel-scoped system prompt
+    # ── Build enriched system prompt ──────────────────────────────────────────
     context_str = ""
+    saved_places_str = ""
+    budget_str = ""
+    participants_str = ""
+    preferences_str = ""
+
     if body.context:
-        trip_id = body.context.get("tripId", "")
         destination = body.context.get("destination", "")
+        trip_id     = body.context.get("tripId", "")
+        budget      = body.context.get("budget", "")
+        travelers   = body.context.get("travelers", "")
+        saved       = body.context.get("savedPlaces", [])   # list of place names
+        group_prefs = body.context.get("groupPreferences", {})
+
         if destination:
-            context_str = f"The user is planning a trip to {destination}."
+            context_str = f"The user is currently planning a trip to **{destination}**."
         elif trip_id:
             context_str = f"The user is planning a trip (ID: {trip_id})."
 
-    system_prompt = (
-        "You are Voyager AI, an expert travel planning assistant. "
-        "You help users plan trips, suggest destinations, estimate budgets, "
-        "and create day-by-day itineraries. Keep responses concise and helpful. "
-        f"{context_str}"
-    )
+        if budget:
+            budget_str = f"\n- Total trip budget: {budget}. Track expenses and flag if suggestions exceed this."
+
+        if travelers:
+            participants_str = (
+                f"\n- The trip involves {travelers} traveler(s). "
+                "Consider that different participants may have different preferences. "
+                "Propose optional activities and compromises when interests may conflict."
+            )
+
+        if group_prefs:
+            import json
+            preferences_str = (
+                f"\n- GROUP PREFERENCES (from polls): {json.dumps(group_prefs)}. "
+                "Please heavily weight the itinerary towards the highest voted categories, "
+                "while still providing a balanced experience."
+            )
+
+        if saved:
+            names = ", ".join(str(p) for p in saved[:10])
+            saved_places_str = (
+                f"\n- The user has already saved these destinations/places: [{names}]. "
+                "Prioritize and integrate these saved places naturally into the schedule. "
+                "Avoid suggesting completely unrelated places unless necessary."
+            )
+
+    system_prompt = f"""\
+You are Voyager AI — an expert, friendly travel planning assistant.
+
+## Core Behavior
+- Help users plan trips, suggest destinations, estimate budgets, and create day-by-day itineraries.
+- Be conversational, warm, and enthusiastic about travel.
+- Provide specific, actionable recommendations with real place names.
+{context_str}
+
+## Trip Context{budget_str}{participants_str}{preferences_str}{saved_places_str}
+
+## Planning Principles (apply to every itinerary or plan you produce)
+
+### 1. Collaborative Trip Awareness
+- When multiple travelers are involved, consider varied interests and age groups.
+- Mark activities as [Optional] when they may not suit all participants.
+- Suggest compromise activities (e.g. beach + nearby cultural site) when interests differ.
+- Offer 1–2 alternative activities per day when appropriate.
+
+### 2. Destination Integration
+- If the user has saved places, build the itinerary around those first.
+- Integrate saved destinations naturally — don't treat them as add-ons.
+- Only suggest additional places if the saved ones don't fill the day adequately.
+
+### 3. Travel Efficiency
+- Group nearby attractions in the same time block (Morning / Afternoon / Evening).
+- Minimize unnecessary travel distance — arrange activities in a logical geographic flow.
+- Flag if any two consecutive activities have an unrealistic travel gap (>1.5 hrs apart).
+- Suggest the best order to visit places to reduce back-and-forth.
+
+### 4. Budget Awareness
+- When budget is provided, estimate approximate daily expenses.
+- Clearly label expensive activities (💰) and suggest budget-friendly alternatives.
+- If the total plan is likely to exceed the budget, highlight this and offer cheaper options.
+- Maintain a balance: don't sacrifice experience for cost unless the user requests it.
+
+### 5. Smart Plan Modification
+- When a user modifies trip parameters (adds destinations, changes duration, adjusts budget):
+  * Preserve the existing itinerary sections that are unaffected.
+  * Only update the specifically affected days or activities.
+  * Briefly explain what was changed and why.
+- Never regenerate the entire plan unless explicitly asked.
+
+### 6. Post-Plan Optimization (optional, non-intrusive)
+- After generating a plan, add a brief **"✨ Suggested Improvements"** section (2–3 bullet points max).
+- Suggestions may include: better activity ordering, reduced travel time, more even day distribution.
+- These are SUGGESTIONS ONLY — do not override the plan you just generated.
+- Keep this section short and clearly separated from the main itinerary.
+
+### 7. Structured Output Format
+Always use this section order when generating itineraries:
+
+```
+Day N: [Title]
+- Morning: [activity]
+- Afternoon: [activity]  
+- Evening: [activity / dinner recommendation]
+- 💰 Estimated daily budget: ₹[amount]
+```
+
+Then add these sections at the end (only when relevant):
+```
+✨ Suggested Improvements
+[2-3 optional bullet tips]
+
+📊 Estimated Budget Breakdown
+Day 1: ₹X | Day 2: ₹X | ... | Total: ₹X
+
+🧳 Travel Tips
+[1-3 practical tips specific to the destination]
+```
+
+IMPORTANT: Do NOT change this format. Do NOT return JSON in chat responses. Write in friendly, readable markdown.
+"""
 
     full_prompt = f"{system_prompt}\n\nUser: {body.message}\n\nAssistant:"
 

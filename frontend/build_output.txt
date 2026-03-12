@@ -1,0 +1,5 @@
+
+> @figma/my-make-file@0.0.1 build
+> vite build
+
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? 

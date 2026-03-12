@@ -1,66 +1,80 @@
-import { Calendar, Users, MapPin, Plus, Wallet, ArrowRight, Compass, Sparkles, TrendingUp, Clock } from "lucide-react";
+import { Calendar, Users, MapPin, Plus, Wallet, ArrowRight, Compass, Sparkles, TrendingUp, Clock, X, Loader2 } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
+import { useTrips } from "../contexts/TripContext";
 
 export default function TripDashboard() {
   const { dbUser } = useAuth();
   const firstName = dbUser?.displayName?.split(" ")[0] || "Explorer";
   const [hoveredTrip, setHoveredTrip] = useState<string | null>(null);
+  
+  const { trips, addTrip } = useTrips();
 
-  const trips = [
-    {
-      id: "trip-1",
-      name: "Bali Retreat 2026",
-      image: "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?auto=format&fit=crop&q=80&w=1080",
-      dates: "Oct 12 – 20, 2026",
-      daysLeft: 214,
-      travelers: 4,
-      budget: { spent: 4500, total: 6000 },
-      location: "Bali, Indonesia",
-      status: "confirmed",
-      statusBg: "bg-emerald-500",
-      statusText: "Confirmed",
-      accentGradient: "from-teal-400 to-cyan-500",
-      barColor: "from-teal-400 to-cyan-400",
-    },
-    {
-      id: "trip-2",
-      name: "Tokyo Neon Lights",
-      image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=1080",
-      dates: "Dec 5 – 15, 2026",
-      daysLeft: 268,
-      travelers: 2,
-      budget: { spent: 2100, total: 5000 },
-      location: "Tokyo, Japan",
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTripCity, setNewTripCity] = useState("");
+  const [newTripStartDate, setNewTripStartDate] = useState("");
+  const [newTripEndDate, setNewTripEndDate] = useState("");
+  const [newTripTravelers, setNewTripTravelers] = useState<number>(2);
+  const [newTripBudget, setNewTripBudget] = useState<number>(2500);
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false);
+
+  const totalPartners = Array.from(new Set(trips.flatMap(t => t.participantIds || []))).length;
+  const activeTripsCount = trips.length;
+  const totalBudget = trips.reduce((acc, t) => acc + t.budget.total, 0);
+
+  const handleCreateTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTripCity || !newTripStartDate || !newTripEndDate) return;
+    setIsCreatingTrip(true);
+    
+    // Auto-generate photo URL for thumbnail using Pollinations AI (free, no key needed)
+    const encodedCity = encodeURIComponent(newTripCity);
+    const photoUrl = `https://image.pollinations.ai/prompt/${encodedCity}%20landscape%20tourism%20photography%20high%20quality?width=1080&height=720&nologo=true`;
+    
+    // Formatting date
+    const start = new Date(newTripStartDate);
+    const end = new Date(newTripEndDate);
+    const dateOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    const dateStr = `${start.toLocaleDateString('en-US', dateOpts)} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric'})}`;
+    
+    const timeDiff = start.getTime() - new Date().getTime();
+    const daysLeft = timeDiff > 0 ? Math.ceil(timeDiff / (1000 * 3600 * 24)) : 0;
+    
+    addTrip({
+      name: `${newTripCity.split(",")[0]} Adventure`,
+      image: photoUrl,
+      dates: dateStr,
+      rawStartDate: newTripStartDate,
+      rawEndDate: newTripEndDate,
+      daysLeft,
+      travelers: newTripTravelers,
+      budget: { spent: 0, total: newTripBudget },
+      location: newTripCity,
       status: "planning",
       statusBg: "bg-amber-500",
       statusText: "Planning",
       accentGradient: "from-pink-500 to-rose-500",
       barColor: "from-amber-400 to-orange-400",
-    },
-    {
-      id: "trip-3",
-      name: "Paris Getaway",
-      image: "https://images.unsplash.com/photo-1431274172761-fca41d930114?auto=format&fit=crop&q=80&w=1080",
-      dates: "May 1 – 8, 2026",
-      daysLeft: 50,
-      travelers: 3,
-      budget: { spent: 1200, total: 3500 },
-      location: "Paris, France",
-      status: "upcoming",
-      statusBg: "bg-indigo-500",
-      statusText: "Upcoming",
-      accentGradient: "from-indigo-500 to-purple-600",
-      barColor: "from-indigo-400 to-purple-400",
-    }
-  ];
+      savedPlaces: []
+    });
 
+    setTimeout(() => {
+      setIsCreatingTrip(false);
+      setIsModalOpen(false);
+      setNewTripCity("");
+      setNewTripStartDate("");
+      setNewTripEndDate("");
+      setNewTripTravelers(2);
+      setNewTripBudget(2500);
+    }, 1500);  
+  };
+  
   const quickStats = [
-    { icon: MapPin, label: "Active Trips", value: "3", iconBg: "bg-white/20" },
-    { icon: Users, label: "Travel Partners", value: "9", iconBg: "bg-white/20" },
-    { icon: TrendingUp, label: "Total Budget", value: "$14.5k", iconBg: "bg-white/20" },
-    { icon: Clock, label: "Next Trip", value: "50d", iconBg: "bg-white/20" },
+    { icon: MapPin, label: "Active Trips", value: activeTripsCount.toString(), iconBg: "bg-white/20" },
+    { icon: Users, label: "Travel Partners", value: totalPartners.toString(), iconBg: "bg-white/20" },
+    { icon: TrendingUp, label: "Total Budget", value: `$${(totalBudget / 1000).toFixed(1)}k`, iconBg: "bg-white/20" },
+    { icon: Clock, label: "Next Trip", value: trips.length > 0 ? `${Math.min(...trips.map(t => t.daysLeft))}d` : "N/A", iconBg: "bg-white/20" },
   ];
 
   const hour = new Date().getHours();
@@ -92,7 +106,10 @@ export default function TripDashboard() {
               </p>
             </div>
 
-            <button className="self-start md:self-auto flex items-center gap-2.5 bg-foreground text-background dark:bg-white dark:text-black px-6 py-3.5 rounded-[1.25rem] font-bold text-sm hover:scale-105 transition-transform shadow-xl shadow-black/5">
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="self-start md:self-auto flex items-center gap-2.5 bg-foreground text-background dark:bg-white dark:text-black px-6 py-3.5 rounded-[1.25rem] font-bold text-sm hover:scale-105 transition-transform shadow-xl shadow-black/5"
+            >
               <Plus size={16} />
               Plan New Trip
             </button>
@@ -185,8 +202,8 @@ export default function TripDashboard() {
                       <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{trip.dates}</span>
                     </div>
                     <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2.5 flex items-center gap-2">
-                      <Users size={13} className="text-teal-500 shrink-0" />
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{trip.travelers} travelers</span>
+                       <Users size={13} className="text-teal-500 shrink-0" />
+                       <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{(trip.participantIds?.length || 0) + 1} travelers</span>
                     </div>
                   </div>
 
@@ -222,7 +239,10 @@ export default function TripDashboard() {
           })}
 
           {/* Add New Trip placeholder */}
-          <div className="bg-white dark:bg-[#13132B] rounded-3xl border-2 border-dashed border-gray-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-700 flex flex-col items-center justify-center min-h-[420px] cursor-pointer group transition-all hover:shadow-xl hover:-translate-y-2 duration-500">
+          <div 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-white dark:bg-[#13132B] rounded-3xl border-2 border-dashed border-gray-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-700 flex flex-col items-center justify-center min-h-[420px] cursor-pointer group transition-all hover:shadow-xl hover:-translate-y-2 duration-500"
+          >
             <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-dashed border-indigo-200 dark:border-indigo-800 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 transition-all duration-300">
               <Plus size={28} className="text-indigo-400 group-hover:text-indigo-600" />
             </div>
@@ -231,6 +251,108 @@ export default function TripDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ===== PLAN NEW TRIP MODAL ===== */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !isCreatingTrip && setIsModalOpen(false)} />
+          
+          <div className="relative bg-white dark:bg-card w-full max-w-md rounded-[2rem] shadow-2xl p-8 transform transition-all">
+            <button 
+              onClick={() => !isCreatingTrip && setIsModalOpen(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-2xl font-bold font-heading mb-6 dark:text-white">Plan New Trip</h3>
+            
+            <form onSubmit={handleCreateTrip} className="space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">City / Destination</label>
+                <div className="relative">
+                  <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    value={newTripCity}
+                    onChange={(e) => setNewTripCity(e.target.value)}
+                    placeholder="e.g. Kyoto, Japan"
+                    className="w-full bg-gray-50 dark:bg-background border border-gray-200 dark:border-border rounded-2xl py-3.5 pl-11 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={newTripStartDate}
+                    onChange={(e) => setNewTripStartDate(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-background border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">End Date</label>
+                  <input
+                    type="date"
+                    required
+                    min={newTripStartDate}
+                    value={newTripEndDate}
+                    onChange={(e) => setNewTripEndDate(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-background border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Travelers</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={newTripTravelers}
+                    onChange={(e) => setNewTripTravelers(Number(e.target.value))}
+                    className="w-full bg-gray-50 dark:bg-background border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Budget Total ($)</label>
+                  <input
+                    type="number"
+                    required
+                    min={100}
+                    value={newTripBudget}
+                    onChange={(e) => setNewTripBudget(Number(e.target.value))}
+                    className="w-full bg-gray-50 dark:bg-background border border-gray-200 dark:border-border rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-900 dark:text-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <button  
+                type="submit" 
+                disabled={isCreatingTrip}
+                className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-indigo-500/30 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isCreatingTrip ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Generating Magic...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    Start Planning
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

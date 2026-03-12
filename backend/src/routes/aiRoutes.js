@@ -5,8 +5,11 @@ const router = express.Router();
 
 router.post('/generate-itinerary', async (req, res) => {
   try {
-    const { city, days, budget, preferences, tripId } = req.body;
-    const plan = await generateItinerary({ city, days, budget, preferences, tripId });
+    const { city, days, budget, preferences, tripId, group_preferences, accepted_suggestions, participants_count } = req.body;
+    const plan = await generateItinerary({ 
+      city, days, budget, preferences, tripId, 
+      group_preferences, accepted_suggestions, participants_count 
+    });
     res.json(plan);
   } catch (err) {
     res.status(502).json({ error: err.message });

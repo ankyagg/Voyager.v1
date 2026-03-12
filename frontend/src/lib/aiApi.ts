@@ -19,6 +19,9 @@ export interface GenerateItineraryRequest {
   budget: string;         // e.g. "20000 INR"
   preferences?: string[]; // e.g. ["beach", "nightlife"]
   tripId?: string;        // Firestore trip doc ID for contextual storage
+  group_preferences?: Record<string, number>;
+  accepted_suggestions?: string[];
+  participants_count?: number;
 }
 
 export interface ChatRequest {
@@ -26,6 +29,9 @@ export interface ChatRequest {
   context?: {
     tripId?: string;
     destination?: string;
+    travelers?: string;
+    budget?: string;
+    savedPlaces?: number[];
   };
 }
 
