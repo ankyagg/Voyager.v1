@@ -32,10 +32,12 @@ from schemas.task_schema import TaskPlan
 
 # ── Default task list inserted when LLM returns an incomplete tasks field ──────
 _DEFAULT_TASKS = [
-    "find destination details",
-    "find top attractions",
-    "estimate budget breakdown",
-    "generate day-wise itinerary",
+    "retrieve destination knowledge",
+    "get attractions",
+    "estimate budget",
+    "get weather info",
+    "get travel tips",
+    "generate itinerary",
 ]
 
 
@@ -59,6 +61,10 @@ def _coerce_task_plan(raw_dict: dict) -> dict:
     # Ensure preferences is a list
     if "preferences" not in raw_dict or not isinstance(raw_dict["preferences"], list):
         raw_dict["preferences"] = []
+
+    # Ensure travel_style exists
+    if "travel_style" not in raw_dict or not isinstance(raw_dict["travel_style"], str):
+        raw_dict["travel_style"] = "standard"
 
     # Ensure tasks contains at least the four standard strings
     existing_tasks = [str(t).lower().strip() for t in raw_dict.get("tasks", [])]

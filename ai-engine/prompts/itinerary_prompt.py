@@ -36,6 +36,7 @@ Trip details:
 - Destination    : {destination}
 - Duration       : {duration_days} days
 - Budget         : {budget}
+- Travel Style   : {travel_style}
 - Interests      : {preferences}
 
 Available attractions:
@@ -49,10 +50,11 @@ Weather & tips:
 
 Your task:
 - Create a realistic day-by-day itinerary for exactly {duration_days} days.
-- Each day must have 3 to 5 activities drawn from the attractions and knowledge above.
+- Distribute activities evenly across days, ensuring a balance between sightseeing and rest.
+- Respect the travel style ({travel_style}) and the {budget} budget constraint implicitly.
+- Each day must have 2 to 4 appropriate activities drawn from the attractions and knowledge above.
 - Use the retrieved travel knowledge (if provided) to include authentic local experiences.
 - Day 1 should include arrival and orientation. Last day should include departure.
-- Respect the budget and include practical activities matching user interests.
 - Do NOT repeat the same attraction across multiple days.
 
 STRICT OUTPUT RULES:
@@ -75,6 +77,7 @@ def build_itinerary_prompt(
     attractions: list,
     budget_info: dict,
     preferences: list,
+    travel_style: str = "standard",
     rag_context: str = "",
     weather_info: dict | None = None,
 ) -> str:
@@ -89,6 +92,7 @@ def build_itinerary_prompt(
     attractions   : List of attraction strings from attraction_tool.
     budget_info   : Budget breakdown dict from budget_tool.
     preferences   : User preference list.
+    travel_style  : User travel style.
     rag_context   : Retrieved knowledge string from rag_service (may be "").
     weather_info  : Weather dict from weather_tool (may be None).
 
@@ -120,6 +124,7 @@ def build_itinerary_prompt(
         destination=destination,
         duration_days=duration_days,
         budget=budget,
+        travel_style=travel_style,
         preferences=pref_str,
         attractions=_json.dumps(attractions, ensure_ascii=False),
         budget_info=_json.dumps(budget_info, ensure_ascii=False, indent=2),

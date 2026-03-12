@@ -22,10 +22,11 @@ _PLANNER_SCHEMA = """\
   "destination": "<city or region name>",
   "duration_days": <integer>,
   "budget": "<amount and currency, e.g. 20000 INR>",
+  "travel_style": "<e.g. budget, standard, luxury, adventure>",
   "preferences": ["<optional interest 1>", "<optional interest 2>"],
   "tasks": [
-    "find destination details",
-    "find top attractions",
+    "retrieve destination knowledge",
+    "get attractions",
     "estimate budget breakdown",
     "generate day-wise itinerary"
   ]
@@ -36,15 +37,17 @@ PLANNER_PROMPT_TEMPLATE = """\
 You are a travel planning coordinator. A user has made a travel request.
 
 Your job:
-1. Extract the destination, trip duration, and budget from the request.
+1. Extract the destination, trip duration, budget, and travel style from the request.
 2. Extract any special preferences or interests (e.g. adventure, food, culture).
    If none are mentioned, use an empty list [].
-3. Create an ordered list of internal tasks to fulfil the request.
-   The tasks list MUST contain these four strings EXACTLY (in this order):
-   - "find destination details"
-   - "find top attractions"
-   - "estimate budget breakdown"
-   - "generate day-wise itinerary"
+3. Create an ordered list of internal tasks to fulfil the request based on constraints.
+   Typical tasks include (use exact wording if applicable):
+   - "retrieve destination knowledge"
+   - "get attractions"
+   - "estimate budget"
+   - "get weather info"
+   - "get travel tips"
+   - "generate itinerary"
 
 STRICT OUTPUT RULES:
 1. Return ONLY valid JSON. No explanations, no markdown, no code fences.

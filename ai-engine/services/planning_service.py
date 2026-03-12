@@ -63,69 +63,78 @@ def run(user_request: str) -> Itinerary:
     _log(1, "Planner Agent — decomposing request ...")
     task_plan = planner_agent.plan(user_request)
 
+    # Extract Phase 3 fields
     destination   = task_plan.destination
     duration_days = task_plan.duration_days
     budget        = task_plan.budget
     preferences   = task_plan.preferences
+    travel_style  = getattr(task_plan, "travel_style", "standard")
+    task_list     = [t.lower() for t in task_plan.tasks]
 
-    # ── Step 2: destination_tool ──────────────────────────────────────────────
-    _log(2, "Tool: destination_tool — fetching destination info ...")
+    # Initialize tool data
+    dest_info = {}
+    dest_type = "mixed"
+    attractions = []
+    budget_info = {}
+    weather_info = None
+    rag_context = ""
+
+    # ── Step 2: RAG retrieval (Phase 3: RAG First) ────────────────────────────
+    _log(2, "RAG Service — retrieving travel knowledge ...")
+    if any("knowledge" in t for t in task_list) or True: # RAG first strategy
+        if is_rag_ready():
+            rag_context = build_rag_context(destination, preferences)
+            rag_chars = len(rag_context)
+            print(f"  Retrieved {rag_chars} chars of knowledge context.")
+        else:
+            print("  Vector store is empty — proceeding without RAG.")
+
+    # ── Step 3: destination_tool ──────────────────────────────────────────────
+    _log(3, "Tool: destination_tool — fetching destination info ...")
     dest_info = destination_tool.get_destination_info(destination)
     dest_type = dest_info.get("type", "mixed")
-    print(
-        f"  {destination} identified as '{dest_type}' destination. "
-        f"Best months: {', '.join(dest_info.get('best_months', [])[:3])}"
-    )
+    print(f"  {destination} identified as '{dest_type}' destination.")
 
-    # ── Step 3: attraction_tool ───────────────────────────────────────────────
-    _log(3, "Tool: attraction_tool — fetching top attractions ...")
-    attractions = attraction_tool.get_attractions(destination, limit=8)
-    print(f"  {len(attractions)} attractions found: {', '.join(attractions[:4])} ...")
-
-    # ── Step 4: budget_tool ───────────────────────────────────────────────────
-    _log(4, "Tool: budget_tool — estimating costs ...")
-    budget_info = budget_tool.estimate_budget(
-        destination=destination,
-        duration_days=duration_days,
-        budget_constraint=budget,
-        destination_type=dest_type,
-    )
-    feasibility = "Feasible" if budget_info["is_feasible"] else "Over budget"
-    print(
-        f"  {feasibility} — Estimated: {budget_info['estimated_cost']} | "
-        f"User budget: {budget}"
-    )
-
-    # ── Step 5: weather_tool (Phase 2) ────────────────────────────────────────
-    _log(5, "Tool: weather_tool — fetching weather info ...")
-    weather_info = weather_tool.get_weather(destination)
-    print(
-        f"  {weather_info['month']}: {weather_info['temp_c']}°C, "
-        f"{weather_info['condition']}"
-    )
-    print(f"  Tip: {weather_info['travel_tip']}")
-
-    # ── Step 6: travel_tip_tool (Phase 2) ─────────────────────────────────────
-    _log(6, "Tool: travel_tip_tool — fetching local tips ...")
-    tips = travel_tip_tool.get_travel_tips(destination, limit=4)
-    for tip in tips[:2]:
-        print(f"  - {tip[:80]}...")
-
-    # ── Step 7: RAG retrieval (Phase 2) ───────────────────────────────────────
-    _log(7, "RAG Service — retrieving travel knowledge ...")
-    if is_rag_ready():
-        rag_context = build_rag_context(destination, preferences)
-        rag_chars = len(rag_context)
-        print(f"  Retrieved {rag_chars} chars of knowledge context.")
+    # ── Step 4: attraction_tool ───────────────────────────────────────────────
+    _log(4, "Tool: attraction_tool — fetching top attractions ...")
+    if any("attraction" in t for t in task_list):
+        attractions = attraction_tool.get_attractions(destination, limit=8)
+        print(f"  {len(attractions)} attractions retrieved.")
     else:
-        rag_context = ""
-        print(
-            "  Vector store is empty — run: python rag/ingest_data.py\n"
-            "  Proceeding without RAG context."
+        print("  Skipped based on planner tasks.")
+
+    # ── Step 5: budget_tool ───────────────────────────────────────────────────
+    _log(5, "Tool: budget_tool — estimating costs ...")
+    if any("budget" in t for t in task_list):
+        budget_info = budget_tool.estimate_budget(
+            destination=destination,
+            duration_days=duration_days,
+            budget_constraint=budget,
+            destination_type=dest_type,
         )
+        feasibility = "Feasible" if budget_info["is_feasible"] else "Over budget"
+        print(f"  {feasibility} — Estimated: {budget_info['estimated_cost']}")
+    else:
+        print("  Skipped based on planner tasks.")
+
+    # ── Step 6: weather_tool ──────────────────────────────────────────────────
+    _log(6, "Tool: weather_tool — fetching weather info ...")
+    if any("weather" in t for t in task_list):
+        weather_info = weather_tool.get_weather(destination)
+        print(f"  {weather_info['month']}: {weather_info['temp_c']}°C, {weather_info['condition']}")
+    else:
+        print("  Skipped based on planner tasks.")
+
+    # ── Step 7: travel_tip_tool ───────────────────────────────────────────────
+    _log(7, "Tool: travel_tip_tool — fetching local tips ...")
+    if any("tip" in t for t in task_list):
+        tips = travel_tip_tool.get_travel_tips(destination, limit=4)
+        print(f"  Added {len(tips)} tips.")
+    else:
+        print("  Skipped based on planner tasks.")
 
     # ── Step 8: Itinerary Agent ───────────────────────────────────────────────
-    _log(8, "Itinerary Agent — generating day-by-day plan ...")
+    _log(8, "Itinerary Agent — generating constraint-aware day-by-day plan ...")
     itinerary = itinerary_agent.generate_itinerary(
         destination=destination,
         duration_days=duration_days,
@@ -133,6 +142,7 @@ def run(user_request: str) -> Itinerary:
         attractions=attractions,
         budget_info=budget_info,
         preferences=preferences,
+        travel_style=travel_style,
         rag_context=rag_context,
         weather_info=weather_info,
     )

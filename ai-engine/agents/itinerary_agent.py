@@ -73,6 +73,7 @@ def generate_itinerary(
     attractions: list,
     budget_info: dict,
     preferences: list,
+    travel_style: str = "standard",  # NEW in Phase 3
     rag_context: str = "",           # NEW in Phase 2
     weather_info: dict | None = None, # NEW in Phase 2
 ) -> Itinerary:
@@ -87,6 +88,7 @@ def generate_itinerary(
     attractions   : List of attraction strings from attraction_tool.
     budget_info   : Budget dict from budget_tool.
     preferences   : User preferences list from TaskPlan.
+    travel_style  : Travel style from TaskPlan (Phase 3).
     rag_context   : Retrieved travel knowledge (Phase 2). Pass "" to skip.
     weather_info  : Weather dict from weather_tool (Phase 2). Pass None to skip.
 
@@ -106,6 +108,7 @@ def generate_itinerary(
         attractions=attractions,
         budget_info=budget_info,
         preferences=preferences,
+        travel_style=travel_style,
         rag_context=rag_context,
         weather_info=weather_info,
     )

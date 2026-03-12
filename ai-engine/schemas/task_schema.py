@@ -22,6 +22,7 @@ class TaskPlan(BaseModel):
     destination   : Extracted destination (e.g. "Manali").
     duration_days : Extracted trip length as an integer.
     budget        : Extracted budget string (e.g. "20000 INR").
+    travel_style  : Travel style (e.g. "budget", "luxury").
     preferences   : Optional special interests ("adventure", "food", etc.).
     tasks         : Ordered list of sub-tasks the system will execute.
     """
@@ -29,6 +30,7 @@ class TaskPlan(BaseModel):
     destination: str = Field(..., min_length=1, description="Travel destination.")
     duration_days: int = Field(..., ge=1, description="Trip length in days.")
     budget: str = Field(..., min_length=1, description="Budget constraint string.")
+    travel_style: str = Field(default="standard", description="Travel style (budget, luxury).")
     preferences: List[str] = Field(
         default_factory=list,
         description="Optional list of interests / preferences.",
@@ -53,5 +55,5 @@ class TaskPlan(BaseModel):
         pref = f" [{', '.join(self.preferences)}]" if self.preferences else ""
         return (
             f"📋 Plan: {self.destination} | {self.duration_days}d | "
-            f"{self.budget}{pref} | {len(self.tasks)} task(s)"
+            f"{self.budget} | {self.travel_style}{pref} | {len(self.tasks)} task(s)"
         )
