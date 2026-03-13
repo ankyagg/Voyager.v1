@@ -12,25 +12,26 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Datasets live in the project root (two levels above backend/src/services)
-const ROOT = join(__dirname, '..', '..', '..');
+const ROOT = join(__dirname, '..', '..', '..', 'ai-engine', 'datasets');
 
 let zomatoData = [];
 let hotelsData = [];
 
 // ── Load datasets once ──────────────────────────────────────────────────────
 try {
-  zomatoData = JSON.parse(readFileSync(join(ROOT, 'zomato_clean_dataset.json'), 'utf8'));
+  zomatoData = JSON.parse(readFileSync(join(ROOT, 'restaurants.json'), 'utf8'));
   console.log(`✅ Zomato dataset loaded: ${zomatoData.length} restaurants`);
 } catch (e) {
   console.warn('⚠️  Zomato dataset not found, skipping:', e.message);
 }
 
 try {
-  hotelsData = JSON.parse(readFileSync(join(ROOT, 'clean_hotels_datasetv2.json'), 'utf8'));
+  hotelsData = JSON.parse(readFileSync(join(ROOT, 'hotels.json'), 'utf8'));
   console.log(`✅ Hotels dataset loaded: ${hotelsData.length} hotels`);
 } catch (e) {
   console.warn('⚠️  Hotels dataset not found, skipping:', e.message);
 }
+
 
 // ── City aliases — map common user inputs to dataset city keys ────────────
 const CITY_ALIASES = {

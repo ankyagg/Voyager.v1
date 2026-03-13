@@ -37,18 +37,23 @@ export const useItinerary = () => {
 // -------------------------------------------------------------------------------
 function parseMarkdownToItinerary(markdown: string): ItineraryDay[] {
   const days: ItineraryDay[] = [];
+  console.log("📄 Parsing markdown to itinerary...", markdown.length, "chars");
 
-  // Split by "Day N:" lines
-  const dayChunks = markdown.split(/\n(?=day\s+\d+[:–—])/i);
+  // Robust splitting: handles "Day 1:", "Day 1 -", "Day 1: " or just "Day 1" on a newline
+  const chunks = markdown.split(/\n(?=day\s+\d+)/i);
+  
+  // If no "Day N" markers found, the whole thing is one day or invalid
+  const dayChunks = chunks.filter(c => c.toLowerCase().includes("day"));
 
   dayChunks.forEach((chunk) => {
-    const dayMatch = chunk.match(/day\s+(\d+)[:–—]\s*(.*)/i);
-    if (!dayMatch) return;
+    // Aggressive match for the day header
+    const dayHeaderMatch = chunk.match(/day\s+(\d+)(?:[:–—\s.-]*)?(.*)/i);
+    if (!dayHeaderMatch) return;
 
-    const dayNumber = parseInt(dayMatch[1], 10);
+    const dayNumber = parseInt(dayHeaderMatch[1], 10);
     const stops: ItineraryStop[] = [];
 
-    const lines = chunk.split("\n").slice(1); // skip the "Day N:" line itself
+    const lines = chunk.split("\n");
 
     const timePrefixes: Record<string, string> = {
       morning: "09:00 AM",
@@ -59,69 +64,90 @@ function parseMarkdownToItinerary(markdown: string): ItineraryDay[] {
 
     lines.forEach(line => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.toLowerCase().startsWith("budget")) return;
+      // Skip headers, empty lines, or budget noise
+      if (!trimmed || /day\s+\d+/i.test(trimmed) || trimmed.toLowerCase().startsWith("budget")) return;
 
-      // Strip ALL bold/italic markdown first so we get plain text
-      const cleanLine = trimmed.replace(/\*\*/g, "").replace(/__/g, "");
+      // Clean markdown bold/italic
+      const cleanLine = trimmed.replace(/\*\*|_/g, "");
 
-      // Detect time-of-day prefix like "Morning: Visit..." or "- Morning: Visit..."
+      // Match time prefixes first: "Morning: visit X"
       const timeMatch = cleanLine.match(/^(?:[-*•]\s*)?(morning|afternoon|evening|night)[:\s]+(.+)/i);
+      
+      let title = "";
+      let time = "09:00 AM";
+
       if (timeMatch) {
-        const timeKey = timeMatch[1].toLowerCase();
-        const title = timeMatch[2].trim();
-        if (title.length > 3) {
-          stops.push({
-            id: `day${dayNumber}-${stops.length}-${Math.random().toString(36).substr(2, 6)}`,
-            time: timePrefixes[timeKey] || "09:00 AM",
-            title,
-            type: "activity",
-            duration: "2h",
-          });
+        title = timeMatch[2].trim();
+        time = timePrefixes[timeMatch[1].toLowerCase()] || "09:00 AM";
+      } else {
+        // Fallback to bullet points or any text line that looks like an activity
+        const bulletMatch = cleanLine.match(/^(?:[-*•]\s+)?(.+)/);
+        if (bulletMatch) {
+          title = bulletMatch[1].trim();
+          // Skip lines that are just descriptive paragraphs (too long) or meta
+          if (title.length > 200 || title.toLowerCase().includes("itinerary")) return;
+          
+          let hour = 9 + (stops.length * 2);
+          if (hour > 23) hour = 23;
+          time = `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
         }
-        return;
       }
 
-      // Detect bullet points like "- Visit..."
-      const bulletMatch = cleanLine.match(/^[-*•]\s+(.+)/);
-      if (bulletMatch) {
-        const title = bulletMatch[1].trim();
-        // Skip budget lines
-        if (title.toLowerCase().startsWith("budget") || title.toLowerCase().includes("estimated daily budget")) return;
-        if (title.length > 3) {
-          // Fallback time math if there was no Morning/Afternoon prefix
-          let hour = 9 + stops.length * 2;
-          if (hour > 23) hour = 23; // Prevent 24+ hour bugs!
-          
-          let ampm = "AM";
-          let displayHour = hour;
-          if (hour >= 12) {
-            ampm = "PM";
-            if (hour > 12) displayHour = hour - 12;
-          }
-          if (displayHour === 0) displayHour = 12;
-
-          stops.push({
-            id: `day${dayNumber}-${stops.length}-${Math.random().toString(36).substr(2, 6)}`,
-            time: `${String(displayHour).padStart(2, "0")}:00 ${ampm}`,
-            title,
-            type: "activity",
-            duration: "2h",
-          });
+      if (title && title.length > 2) {
+        const lowerTitle = title.toLowerCase();
+        
+        // 1. Skip budget-related lines (more aggressive check)
+        if (lowerTitle.includes("estimated budget") || 
+            lowerTitle.includes("total cost") || 
+            lowerTitle.includes("cost per person") ||
+            /^total[:\s]/.test(lowerTitle) ||
+            /₹\d+/.test(title)) { // If it's just a price line, skip
+          console.log(`⏭️ Skipping budget line: "${title}"`);
+          return;
         }
-        return;
+
+        // 2. Comprehensive Tip/Noise Filter
+        // Only skip if it's VERY clearly not a place (generic advice)
+        const landmarkKeywords = /temple|fort|palace|museum|church|mosque|garden|park|lake|beach|market|waterfall|cave|gate|mahal|dam|zoo|stadium|wada|ghat|mandir|cemetery|memorial|tower|bridge|hill|island|falls|point|valley|springs|dargah|neighborhood|causeway/i;
+        
+        const isAction = /^(visit|explore|see|check out|discover|experience|head to|go to|walk to|drive to|start|enjoy|begin|end)/i.test(lowerTitle);
+        const hasLandmark = landmarkKeywords.test(lowerTitle);
+
+        const isTip = /^(remember|make sure|keep in mind|carry|wear|bring|pack|drink|avoid|note|pro tip|tip:|be prepared|dress|don't forget)/i.test(lowerTitle)
+          || /^(sunscreen|comfortable shoes|hydration|public transport|ride-hailing|getting around)/i.test(lowerTitle);
+
+        // If it's a long line (desc) but starts with an action or has a landmark, we KEEP it
+        if (isTip && !(isAction || hasLandmark)) {
+          console.log(`⏭️ Skipping tip: "${title.substring(0, 50)}..."`);
+          return;
+        }
+        
+        // Even if it says nothing special, if it's too long and no landmark/action, skip
+        if (title.length > 150 && !(isAction || hasLandmark)) {
+          console.log(`⏭️ Skipping description paragraph: "${title.substring(0, 50)}..."`);
+          return;
+        }
+
+        stops.push({
+          id: `day${dayNumber}-${stops.length}-${Math.random().toString(36).substr(2, 6)}`,
+          time,
+          title: title.slice(0, 120),
+          type: "activity",
+          duration: "2h",
+        });
       }
     });
-
 
     if (stops.length > 0) {
       days.push({
         day: dayNumber,
-        date: `Day ${dayNumber}`,
+        date: `Day ${dayNumber}`, // Could be improved if we had a start date
         stops,
       });
     }
   });
 
+  console.log("✅ Parsed", days.length, "days with total", days.reduce((acc, d) => acc + d.stops.length, 0), "stops.");
   return days;
 }
 

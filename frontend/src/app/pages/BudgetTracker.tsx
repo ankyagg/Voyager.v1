@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { DollarSign, Plane, Hotel, Coffee, Compass, Plus, MoreHorizontal, Trash2, X } from "lucide-react";
-import { socket } from "../imports/socket";
+import { Plus, Trash2, DollarSign, X } from "lucide-react";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
 interface Expense {
   id: string;
@@ -15,31 +16,34 @@ interface Expense {
 
 export default function BudgetTracker() {
   const { tripId } = useParams();
-  const [totalBudget] = useState(6000);
-  const [expenses, setExpenses] = useState<Expense[]>([
-    { id: "1", name: "Flights", category: "Transport", date: "Oct 1", amount: 1200, paidBy: "John" },
-  ]);
+  const [totalBudget, setTotalBudget] = useState(6000);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newExpense, setNewExpense] = useState({ name: "", category: "Food & Drinks", amount: "" });
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   useEffect(() => {
-    socket.on("budget_updated", (data: any) => {
-      if (data.tripId === tripId) {
-        setExpenses(data.expenses);
+    if (!tripId) return;
+
+    // Listen to trip document for budget and expenses
+    const unsub = onSnapshot(doc(db, "trips", tripId), (snapshot) => {
+      const data = snapshot.data();
+      if (data) {
+        if (data.expenses) {
+          setExpenses(data.expenses);
+        }
+        if (data.budget?.total) {
+          setTotalBudget(data.budget.total);
+        }
       }
     });
-    return () => { socket.off("budget_updated"); };
+
+    return () => unsub();
   }, [tripId]);
 
-  const updateAndBroadcast = (newExpenses: Expense[]) => {
-    setExpenses(newExpenses);
-    socket.emit("budget_update", { tripId, expenses: newExpenses });
-  };
-
-  const addExpense = () => {
-    if (!newExpense.name || !newExpense.amount) return;
+  const addExpense = async () => {
+    if (!newExpense.name || !newExpense.amount || !tripId) return;
     const expense: Expense = {
       id: Date.now().toString(),
       name: newExpense.name,
@@ -48,13 +52,34 @@ export default function BudgetTracker() {
       amount: parseFloat(newExpense.amount),
       paidBy: "Me"
     };
-    updateAndBroadcast([...expenses, expense]);
-    setIsModalOpen(false);
-    setNewExpense({ name: "", category: "Food & Drinks", amount: "" });
+    
+    const updatedExpenses = [...expenses, expense];
+    try {
+      await updateDoc(doc(db, "trips", tripId), {
+        expenses: updatedExpenses,
+        "budget.spent": totalSpent + expense.amount
+      });
+      setIsModalOpen(false);
+      setNewExpense({ name: "", category: "Food & Drinks", amount: "" });
+    } catch (err) {
+      console.error("Failed to add expense:", err);
+    }
   };
 
-  const removeExpense = (id: string) => {
-    updateAndBroadcast(expenses.filter(e => e.id !== id));
+  const removeExpense = async (id: string) => {
+    if (!tripId) return;
+    const expenseToRemove = expenses.find(e => e.id === id);
+    if (!expenseToRemove) return;
+
+    const updatedExpenses = expenses.filter(e => e.id !== id);
+    try {
+      await updateDoc(doc(db, "trips", tripId), {
+        expenses: updatedExpenses,
+        "budget.spent": Math.max(0, totalSpent - expenseToRemove.amount)
+      });
+    } catch (err) {
+      console.error("Failed to remove expense:", err);
+    }
   };
 
   const categoryTotals = expenses.reduce((acc: any, curr) => {

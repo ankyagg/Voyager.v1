@@ -18,6 +18,16 @@ export default defineConfig({
   },
   server: {
     allowedHosts: true, // Allows ngrok and other tunneling services
+    proxy: {
+      '/api/geocode': {
+        target: 'https://nominatim.openstreetmap.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/geocode/, ''),
+        headers: {
+          'User-Agent': 'Voyager-Travel-Planner'
+        }
+      }
+    }
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

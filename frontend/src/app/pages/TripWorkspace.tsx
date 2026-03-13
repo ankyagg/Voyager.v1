@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router";
-import { doc, setDoc, onSnapshot, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { Calendar, MapPin, Wallet, Pencil, ChevronRight, MessageSquare, Image as ImageIcon, Map, MessageCircle, Users, Sparkles, Activity, BarChart2, CheckSquare, Lightbulb, FileText, Share2, Send } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -8,8 +8,9 @@ import { useTrips } from "../contexts/TripContext";
 import ItineraryPlanner from "../components/ItineraryPlanner";
 import BudgetTracker from "./BudgetTracker";
 import DestinationDiscovery from "./DestinationDiscovery";
-import { Map as MapComponent } from "@/components/ui/map";
-import { ItineraryProvider } from "../contexts/ItineraryContext";
+import { Map as MapComponent, MapMarker, MarkerContent, MarkerPopup, MapControls } from "@/components/ui/map";
+import { ItineraryProvider, useItinerary } from "../contexts/ItineraryContext";
+import { useItineraryMarkers } from "../hooks/useItineraryMarkers";
 
 export default function TripWorkspace() {
   const { tripId } = useParams();
@@ -25,8 +26,8 @@ export default function TripWorkspace() {
     // Fast path: if found in context, use it immediately
     const found = trips.find(t => t.id === tripId);
     if (found) {
-       setActiveTrip(found);
-       setLoading(false);
+      setActiveTrip(found);
+      setLoading(false);
     }
 
     // Subscribe to the specific trip document for real-time updates (important for shared links)
@@ -38,16 +39,16 @@ export default function TripWorkspace() {
 
         // Auto-join if user is logged in and not already a participant
         if (currentUser && data.userId !== currentUser.uid) {
-           const pIds = data.participantIds || [];
-           if (!pIds.includes(currentUser.uid)) {
-              updateDoc(doc(db, "trips", tripId), {
-                participantIds: arrayUnion(currentUser.uid),
-                [`participants.${currentUser.uid}`]: {
-                  role: "editor",
-                  joinedAt: new Date().toISOString()
-                }
-              });
-           }
+          const pIds = data.participantIds || [];
+          if (!pIds.includes(currentUser.uid)) {
+            updateDoc(doc(db, "trips", tripId), {
+              participantIds: arrayUnion(currentUser.uid),
+              [`participants.${currentUser.uid}`]: {
+                role: "editor",
+                joinedAt: new Date().toISOString()
+              }
+            });
+          }
         }
       } else {
         setLoading(false);
@@ -70,13 +71,13 @@ export default function TripWorkspace() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <div className="w-24 h-24 bg-red-100 dark:bg-red-500/20 rounded-[2.5rem] flex items-center justify-center text-red-600 mb-6">
-           <MapPin size={40} />
+          <MapPin size={40} />
         </div>
         <h2 className="text-2xl font-bold mb-2">Trip Not Found</h2>
         <p className="text-muted-foreground text-center max-w-sm mb-8">
           The trip you are looking for might have been deleted, or you don't have permission to view it.
         </p>
-        <button 
+        <button
           onClick={() => window.location.href = "/dashboard"}
           className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg"
         >
@@ -103,12 +104,12 @@ export default function TripWorkspace() {
   // 1. Presence Heartbeat
   useEffect(() => {
     if (!tripId || !currentUser) return;
-    
+
     const userName = currentUser.displayName?.split(" ")[0] || "Explorer";
     const userInitials = userName.slice(0, 2).toUpperCase();
     const colors = ["from-indigo-400 to-violet-500", "from-teal-400 to-cyan-500", "from-rose-400 to-pink-500", "from-amber-400 to-orange-500", "from-emerald-400 to-teal-500"];
     const colorHash = currentUser.uid.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-    
+
     const updatePresence = () => {
       setDoc(doc(db, "trips", tripId, "collab", "presence"), {
         [currentUser.uid]: {
@@ -151,7 +152,7 @@ export default function TripWorkspace() {
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/70" />
-          
+
           {/* Breadcrumb */}
           <div className="absolute top-6 left-8 flex items-center gap-2 text-white/70 text-xs font-semibold">
             <span className="hover:text-white cursor-pointer transition-colors">My Trips</span>
@@ -161,7 +162,7 @@ export default function TripWorkspace() {
 
           {/* Edit & Share buttons */}
           <div className="absolute top-5 right-8 flex items-center gap-3">
-            <button 
+            <button
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
                 alert("Trip link copied to clipboard! Share it with your friends to collaborate.");
@@ -218,10 +219,10 @@ export default function TripWorkspace() {
                       {user.initials}
                     </div>
                   ))}
-                  <button 
+                  <button
                     onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        alert("Trip link copied! Share with friends to invite them.");
+                      navigator.clipboard.writeText(window.location.href);
+                      alert("Trip link copied! Share with friends to invite them.");
                     }}
                     className="w-9 h-9 rounded-full bg-muted border-2 border-card text-muted-foreground text-xs font-bold hover:bg-accent transition-colors flex items-center justify-center"
                   >
@@ -246,11 +247,10 @@ export default function TripWorkspace() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 pb-3 pt-2 px-4 text-sm font-bold transition-all whitespace-nowrap border-b-2 rounded-t-lg ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 pb-3 pt-2 px-4 text-sm font-bold transition-all whitespace-nowrap border-b-2 rounded-t-lg ${activeTab === tab.id
                       ? "border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30"
                       : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                  }`}
+                    }`}
                 >
                   <tab.icon size={14} />
                   {tab.label}
@@ -293,74 +293,86 @@ const OSM_STYLE = {
 
 function TripOverview({ trip }: { trip: any }) {
   const [mapProvider, setMapProvider] = useState<"carto" | "osm">("carto");
-  const [coords, setCoords] = useState<[number, number]>([115.1889, -8.4095]); // default bali
-  const { dbUser } = useAuth();
-  const initials = dbUser?.displayName ? dbUser.displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "E";
-  const firstName = dbUser?.displayName?.split(" ")[0] || "Explorer";
+  const { dbUser: _dbUser } = useAuth();
+  
+  // Get active itinerary
+  const { itinerary } = useItinerary();
+  // Get markers and coordinates
+  const { itineraryMarkers, mapCoords, baseCoords } = useItineraryMarkers(itinerary, trip?.location);
+  
+  const [mapCenter, setMapCenter] = useState<[number, number]>([115.1889, -8.4095]);
 
   useEffect(() => {
-    if (!trip?.location) return;
-    const fetchCoords = async () => {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trip.location)}&format=json&limit=1`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          setCoords([parseFloat(data[0].lon), parseFloat(data[0].lat)]);
-        }
-      } catch (e) {
-        console.error("Geocoding failed", e);
-      }
-    };
-    fetchCoords();
-  }, [trip?.location]);
+    if (mapCoords) {
+      setMapCenter(mapCoords);
+    } else if (baseCoords) {
+      setMapCenter(baseCoords);
+    }
+  }, [mapCoords, baseCoords]);
 
-  const activities = [
-    { icon: "✈️", date: "Oct", day: "12", title: "Flight to Denpasar", sub: "Garuda Indonesia GA-802 · 14:30 PM", active: true },
-    { icon: "🏨", date: "Oct", day: "12", title: "Check-in at Alila Villas", sub: "Uluwatu, Bali · 18:00 PM", active: false },
-    { icon: "🌊", date: "Oct", day: "13", title: "Uluwatu Temple & Kecak Dance", sub: "09:00 AM · 3 hours", active: false },
-  ];
+
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
       {/* Left Column: Map + Upcoming */}
       <div className="xl:col-span-8 flex flex-col gap-6 lg:gap-8">
-        
+
         {/* Map Card */}
         <div className="bg-card rounded-[2rem] overflow-hidden shadow-xl shadow-indigo-900/5 dark:shadow-black/40 border border-border/60 flex flex-col group relative">
-           {/* Map Header */}
-           <div className="absolute top-0 left-0 right-0 z-10 p-5 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-              <h2 className="font-heading font-bold text-xl text-white flex items-center gap-2 drop-shadow-md">
-                <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
-                  <Map className="text-white" size={16} />
-                </div>
-                Trip Map
-              </h2>
-              <div className="flex gap-1.5 pointer-events-auto bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xl">
-                {(["carto", "osm"] as const).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setMapProvider(p)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      mapProvider === p
-                        ? "bg-white text-black shadow-sm"
-                        : "text-white/70 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {p === "carto" ? "Carto" : "OSM"}
-                  </button>
-                ))}
+          {/* Map Header */}
+          <div className="absolute top-0 left-0 right-0 z-10 p-5 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+            <h2 className="font-heading font-bold text-xl text-white flex items-center gap-2 drop-shadow-md">
+              <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
+                <Map className="text-white" size={16} />
               </div>
-           </div>
+              Trip Map
+            </h2>
+            <div className="flex gap-1.5 pointer-events-auto bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xl">
+              {(["carto", "osm"] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setMapProvider(p)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mapProvider === p
+                      ? "bg-white text-black shadow-sm"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
+                    }`}
+                >
+                  {p === "carto" ? "Carto" : "OSM"}
+                </button>
+              ))}
+            </div>
+          </div>
 
-           <div className="h-[400px] md:h-[550px] lg:h-[600px] relative w-full">
+          <div className="h-[400px] md:h-[550px] lg:h-[600px] relative w-full">
             <MapComponent
-              key={coords.join(',')}
-              center={coords}
+              key={mapCenter.join(',')}
+              center={mapCenter}
               zoom={10}
               className="w-full h-full object-cover"
               styles={mapProvider === "osm" ? { light: OSM_STYLE, dark: OSM_STYLE } : undefined}
-            />
-            
+            >
+              <MapControls position="bottom-right" />
+              {itineraryMarkers.map((marker, idx) => (
+                <MapMarker key={marker.id} longitude={marker.lng} latitude={marker.lat}>
+                  <MarkerContent>
+                    <div className="relative group cursor-pointer scale-110">
+                      <div className="absolute inset-0 bg-indigo-500 rounded-full blur-md opacity-40 group-hover:opacity-70 transition-opacity" />
+                      <div className="relative w-8 h-8 bg-white dark:bg-indigo-950 rounded-xl rotate-45 border-2 border-indigo-600 shadow-2xl flex items-center justify-center transform group-hover:scale-110 transition-all">
+                        <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 -rotate-45">{idx + 1}</span>
+                      </div>
+                    </div>
+                  </MarkerContent>
+                  <MarkerPopup>
+                    <div className="p-3 bg-card min-w-[200px] rounded-2xl border border-border/50 shadow-xl">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{marker.type}</p>
+                      <h4 className="font-bold text-sm text-foreground mb-1">{marker.title}</h4>
+                      <p className="text-xs text-indigo-600 font-bold">{marker.time}</p>
+                    </div>
+                  </MarkerPopup>
+                </MapMarker>
+              ))}
+            </MapComponent>
+
             {/* Floating Map Label */}
             <div className="absolute bottom-6 left-6 bg-white/95 dark:bg-[#13132B]/95 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 flex items-center gap-3 pointer-events-none ring-1 ring-black/5">
               <span className="relative flex h-3 w-3">
@@ -372,7 +384,7 @@ function TripOverview({ trip }: { trip: any }) {
                 <p className="text-[10px] text-muted-foreground uppercase font-semibold mt-1 tracking-wider">Base Camp</p>
               </div>
             </div>
-           </div>
+          </div>
         </div>
 
         {/* Upcoming Activities - Horizontal layout for larger screens */}
@@ -388,31 +400,30 @@ function TripOverview({ trip }: { trip: any }) {
               View Itinerary <ChevronRight size={14} />
             </button>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {activities.map((act, i) => (
-              <div key={i} className={`flex flex-col gap-4 p-5 rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-                act.active
-                  ? "border-indigo-200 dark:border-indigo-500/30 bg-gradient-to-br from-indigo-50 to-white dark:from-[#1E1E3F] dark:to-[#13132B] shadow-sm transform scale-[1.02]"
-                  : "border-border/60 bg-muted/20 hover:bg-muted/40"
-              }`}>
-                <div className="flex justify-between items-start">
-                  <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm ${
-                    act.active
-                      ? "bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-indigo-600/30"
-                      : "bg-white dark:bg-card border border-border/60 text-muted-foreground"
-                  }`}>
-                    <span className="text-[10px] font-bold uppercase leading-none mt-1">{act.date}</span>
-                    <span className="text-lg font-bold leading-none mb-1">{act.day}</span>
+            {itineraryMarkers.length > 0 ? (
+              itineraryMarkers.slice(0, 3).map((marker, idx) => (
+                <div key={marker.id} className="flex flex-col gap-4 p-5 rounded-2xl border border-indigo-200 dark:border-indigo-500/30 bg-gradient-to-br from-indigo-50 to-white dark:from-[#1E1E3F] dark:to-[#13132B] shadow-sm hover:-translate-y-1 transition-all duration-300">
+                  <div className="flex justify-between items-start">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-indigo-600/20">
+                      {idx + 1}
+                    </div>
+                    <span className="px-2 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
+                      {marker.type}
+                    </span>
                   </div>
-                  <span className="text-3xl filter drop-shadow-sm">{act.icon}</span>
+                  <div>
+                    <h4 className="font-bold text-base leading-tight mb-1.5 text-indigo-900 dark:text-indigo-100 line-clamp-1">{marker.title}</h4>
+                    <p className="text-xs text-muted-foreground font-medium">{marker.time}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className={`font-bold text-base leading-tight mb-1.5 ${act.active ? "text-indigo-900 dark:text-indigo-100" : "text-foreground"}`}>{act.title}</h4>
-                  <p className="text-xs text-muted-foreground font-medium">{act.sub}</p>
-                </div>
+              ))
+            ) : (
+              <div className="col-span-3 py-10 text-center bg-muted/20 rounded-2xl border border-dashed border-border/60">
+                <p className="text-sm text-muted-foreground italic">No activities planned yet. Go to the Itinerary tab to start planning!</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -430,7 +441,7 @@ function TripDiscussion({ trip, liveUsers }: { trip: any, liveUsers: any[] }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   const initials = dbUser?.displayName ? dbUser.displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "E";
   const fullName = dbUser?.displayName || "Explorer";
 
@@ -497,9 +508,9 @@ function TripDiscussion({ trip, liveUsers }: { trip: any, liveUsers: any[] }) {
       <div ref={scrollRef} className="flex-1 px-5 py-6 overflow-y-auto space-y-6 scroll-smooth">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-30 text-center px-8">
-             <MessageSquare size={48} className="mb-4" />
-             <p className="font-bold">No messages yet</p>
-             <p className="text-sm">Kick off the discussion by sharing an idea!</p>
+            <MessageSquare size={48} className="mb-4" />
+            <p className="font-bold">No messages yet</p>
+            <p className="text-sm">Kick off the discussion by sharing an idea!</p>
           </div>
         ) : (
           messages.map((msg, i) => {
@@ -514,11 +525,10 @@ function TripDiscussion({ trip, liveUsers }: { trip: any, liveUsers: any[] }) {
                     <span className="font-bold text-xs text-foreground/80">{msg.senderName}</span>
                     <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
                   </div>
-                  <p className={`text-sm p-3.5 rounded-2xl border transition-all ${
-                    isMe 
-                      ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/10 rounded-tr-none" 
+                  <p className={`text-sm p-3.5 rounded-2xl border transition-all ${isMe
+                      ? "bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/10 rounded-tr-none"
                       : "bg-muted/40 text-foreground border-border/60 rounded-tl-none"
-                  }`}>
+                    }`}>
                     {msg.text}
                   </p>
                 </div>
@@ -531,7 +541,7 @@ function TripDiscussion({ trip, liveUsers }: { trip: any, liveUsers: any[] }) {
       <form onSubmit={sendMessage} className="p-6 border-t border-border bg-card">
         <div className="flex items-center gap-3 bg-muted/30 border border-border/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] rounded-[1.5rem] px-5 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all duration-300">
           <button type="button" className="text-muted-foreground hover:text-indigo-600 transition-colors shrink-0 p-1.5 hover:bg-white dark:hover:bg-white/10 rounded-xl">
-             <ImageIcon size={20} />
+            <ImageIcon size={20} />
           </button>
           <input
             type="text"
@@ -540,7 +550,7 @@ function TripDiscussion({ trip, liveUsers }: { trip: any, liveUsers: any[] }) {
             placeholder="Type a message or share an idea..."
             className="flex-1 bg-transparent border-none outline-none text-[15px] text-foreground placeholder:text-muted-foreground/40 py-3.5"
           />
-          <button 
+          <button
             type="submit"
             disabled={!messageInput.trim()}
             className="p-3 bg-indigo-600 text-white rounded-[1.15rem] hover:bg-indigo-700 disabled:opacity-30 disabled:grayscale transition-all shadow-xl shadow-indigo-600/20 shrink-0"
@@ -606,7 +616,7 @@ function TripSuggestions({ trip }: { trip: any }) {
   const addSuggestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSuggestion.trim()) return;
-    
+
     const newItem = {
       id: Math.random().toString(36).substr(2, 9),
       text: newSuggestion.trim(),
@@ -627,8 +637,8 @@ function TripSuggestions({ trip }: { trip: any }) {
   const vote = (id: string, type: 'up' | 'down') => {
     const updated = suggestions.map(s => {
       if (s.id === id) {
-        return { 
-          ...s, 
+        return {
+          ...s,
           upvotes: type === 'up' ? s.upvotes + 1 : s.upvotes,
           downvotes: type === 'down' ? s.downvotes + 1 : s.downvotes,
           status: (type === 'up' && s.upvotes + 1 >= 2) ? 'accepted' : ((type === 'down' && s.downvotes + 1 >= 2) ? 'rejected' : s.status)
@@ -650,13 +660,13 @@ function TripSuggestions({ trip }: { trip: any }) {
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto min-h-[60vh]">
-      
+
       {/* Group Polls Section */}
       <div className="mb-12 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-3xl p-6">
         <h3 className="font-bold text-lg text-foreground mb-4">What vibe are we going for?</h3>
         <div className="flex flex-wrap gap-3">
           {Object.entries(polls).map(([category, count]) => (
-            <button 
+            <button
               key={category}
               onClick={() => votePoll(category)}
               className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl shadow-sm hover:border-indigo-400 hover:shadow-md transition-all group"
@@ -678,9 +688,9 @@ function TripSuggestions({ trip }: { trip: any }) {
           <p className="text-muted-foreground mt-1">Vote on places and activities to add to the itinerary. 2 positive votes automatically accepts!</p>
         </div>
         <form onSubmit={addSuggestion} className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="Suggest a place..." 
+          <input
+            type="text"
+            placeholder="Suggest a place..."
             value={newSuggestion}
             onChange={e => setNewSuggestion(e.target.value)}
             className="px-4 py-2 border rounded-lg bg-transparent border-indigo-200 outline-none focus:border-indigo-400"
@@ -766,7 +776,7 @@ function TripNotes({ trip }: { trip: any }) {
         const data = docSnap.data();
         const otherCursors = { ...data };
         delete otherCursors[userName];
-        
+
         // Clear stale cursors older than 10 seconds
         const now = Date.now();
         Object.keys(otherCursors).forEach(k => {
@@ -792,7 +802,7 @@ function TripNotes({ trip }: { trip: any }) {
         const rect = containerRef.current.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
-        
+
         const colors = ["#ef4444", "#3b82f6", "#10b981", "#8b5cf6", "#f97316", "#14b8a6"];
         const colorHash = userName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
         const color = colors[colorHash];
@@ -803,13 +813,13 @@ function TripNotes({ trip }: { trip: any }) {
       }
     }
   };
-  
+
   const handleMouseLeave = () => {
-     if (trip?.id) {
-        setDoc(doc(db, "trips", trip.id, "collab", "cursors"), {
-          [userName]: { x: -100, y: -100, name: userName, color: "transparent", updatedAt: 0 }
-        }, { merge: true });
-     }
+    if (trip?.id) {
+      setDoc(doc(db, "trips", trip.id, "collab", "cursors"), {
+        [userName]: { x: -100, y: -100, name: userName, color: "transparent", updatedAt: 0 }
+      }, { merge: true });
+    }
   };
 
   const logActivity = async (action: string, target: string) => {
@@ -833,11 +843,11 @@ function TripNotes({ trip }: { trip: any }) {
     const val = e.target.value;
     setContent(val);
     setStatus("Saving...");
-    
+
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(() => {
-      setDoc(doc(db, "trips", trip.id, "collab", "notes"), 
-        { content: val, updatedAt: new Date().toISOString() }, 
+      setDoc(doc(db, "trips", trip.id, "collab", "notes"),
+        { content: val, updatedAt: new Date().toISOString() },
         { merge: true }
       ).then(() => {
         setStatus("Saved");
@@ -859,8 +869,8 @@ function TripNotes({ trip }: { trip: any }) {
           Share Notes
         </button>
       </div>
-      
-      <div 
+
+      <div
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -868,13 +878,13 @@ function TripNotes({ trip }: { trip: any }) {
       >
         {Object.values(cursors).map((c: any) => (
           c.x >= 0 && c.y >= 0 && (
-            <div 
+            <div
               key={c.name}
               className="absolute pointer-events-none transition-all duration-300 ease-out z-50 flex flex-col items-start"
               style={{ left: `${c.x}%`, top: `${c.y}%` }}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill={c.color} xmlns="http://www.w3.org/2000/svg" className="transform -translate-x-1 -translate-y-1 drop-shadow-md">
-                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 01.35-.15h6.61c.45 0 .67-.54.35-.85L5.85 2.86a.5.5 0 00-.85.35z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 01.35-.15h6.61c.45 0 .67-.54.35-.85L5.85 2.86a.5.5 0 00-.85.35z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
               </svg>
               <div className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-bold mt-1 tracking-wide uppercase border transform -translate-x-1" style={{ borderColor: c.color, color: c.color }}>
                 {c.name}
@@ -884,7 +894,7 @@ function TripNotes({ trip }: { trip: any }) {
         ))}
 
         <div className="absolute top-4 right-4 text-xs font-bold text-yellow-600/60 dark:text-yellow-500/40 z-10">{status}</div>
-        <textarea 
+        <textarea
           value={content}
           onChange={handleChange}
           className="w-full h-full min-h-[350px] bg-transparent resize-none outline-none font-medium text-foreground placeholder:text-muted-foreground/50"
@@ -940,9 +950,9 @@ function TripTasks({ trip }: { trip: any }) {
     e.preventDefault();
     if (!newTaskInput.trim()) return;
     const newTask = { text: newTaskInput.trim(), assigned: userName, done: false };
-    
-    setDoc(doc(db, "trips", trip.id, "collab", "tasks"), { 
-      items: tasks.length ? [...tasks, newTask] : [newTask] 
+
+    setDoc(doc(db, "trips", trip.id, "collab", "tasks"), {
+      items: tasks.length ? [...tasks, newTask] : [newTask]
     }, { merge: true }).then(() => {
       logActivity("added task", newTask.text);
       setNewTaskInput("");
@@ -970,8 +980,8 @@ function TripTasks({ trip }: { trip: any }) {
         ))}
 
         <form onSubmit={addTask} className="mt-4 flex gap-2">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={newTaskInput}
             onChange={(e) => setNewTaskInput(e.target.value)}
             placeholder="+ Add a new task..."
@@ -1027,7 +1037,7 @@ function TripActivityFeed({ trip }: { trip: any }) {
               <p className="text-foreground leading-relaxed">
                 <span className={`font-bold ${item.isAI ? "text-indigo-700 dark:text-indigo-400" : ""}`}>{item.name}</span>
                 <span className="text-muted-foreground mr-1"> {item.action}</span>
-                <br/>
+                <br />
                 <span className="font-semibold text-foreground bg-foreground/5 dark:bg-foreground/10 px-2 py-0.5 rounded-md inline-block mt-1">{item.target}</span>
               </p>
               <span className="text-[11px] text-muted-foreground mt-2 block font-medium flex items-center gap-1.5 uppercase tracking-wider">
@@ -1037,7 +1047,7 @@ function TripActivityFeed({ trip }: { trip: any }) {
           </div>
         ))}
       </div>
-      
+
       <button className="w-full mt-6 py-3.5 rounded-xl border-2 border-dashed border-border text-sm font-bold text-muted-foreground hover:text-foreground hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all flex items-center justify-center gap-2">
         Load More Activity
       </button>

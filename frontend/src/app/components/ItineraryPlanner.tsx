@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { GripVertical, Clock, Map as MapIcon, Calendar, Compass, Sparkles, Loader2, X, CheckCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
-import { generateAIItinerary, chatWithAI, type ItineraryResponse, type DayPlan } from "@/lib/aiApi";
+import { Map as MapComponent, MapMarker, MarkerContent, MarkerPopup, MapControls } from "@/components/ui/map";
+import { chatWithAI } from "@/lib/aiApi";
 import { useItinerary } from "../contexts/ItineraryContext";
+import { useItineraryMarkers } from "../hooks/useItineraryMarkers";
 
 type ItineraryStop = {
   id: string;
@@ -20,20 +22,6 @@ type ItineraryDay = {
 
 
 
-// ── Converts AI DayPlan[] into the display format ─────────────────────────────
-function aiDaysToStops(days: DayPlan[]): ItineraryDay[] {
-  return days.map((d) => ({
-    day: d.day,
-    date: `Day ${d.day}`,
-    stops: d.activities.map((act, i) => ({
-      id: `ai-${d.day}-${i}-${Math.random().toString(36).substr(2, 9)}`,
-      time: `${(9 + i * 2).toString().padStart(2, "0")}:00 ${9 + i * 2 < 12 ? "AM" : "PM"}`,
-      title: act,
-      type: "activity" as const,
-      duration: "2h",
-    })),
-  }));
-}
 
 // ── AI Generate Panel ─────────────────────────────────────────────────────────
 interface AIPanelProps {
@@ -217,8 +205,19 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
   const { itinerary: ctxItinerary, setItinerary: setCtxItinerary, applyFromMarkdown } = useItinerary();
   const [itinerary, _setItinerary]          = useState<ItineraryDay[]>(ctxItinerary);
   const [showAIPanel, setShowAIPanel]       = useState(false);
+  const [showMapModal, setShowMapModal]     = useState(false);
   const [aiMetadata, setAiMetadata]         = useState<{ destination: string; budget: string } | null>(null);
   const [availablePlaces, setAvailablePlaces] = useState<ItineraryStop[]>([]);
+  const { itineraryMarkers, mapCoords, baseCoords } = useItineraryMarkers(ctxItinerary, trip?.location || "");
+  const [mapCenter, setMapCenter] = useState<[number, number]>([115.1889, -8.4095]);
+
+  useEffect(() => {
+    if (mapCoords) {
+      setMapCenter(mapCoords);
+    } else if (baseCoords) {
+      setMapCenter(baseCoords);
+    }
+  }, [mapCoords, baseCoords]);
 
   // Keep local state in sync when context changes (e.g. Apply from chat)
   const setItinerary = (days: ItineraryDay[]) => {
@@ -248,10 +247,6 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
     }
   }, [trip?.savedPlaces, itinerary]); // Note: keeping itinerary as dependency means if we delete from it, it pops back to sidebar
 
-  const handleApplyAI = (result: ItineraryResponse) => {
-    setItinerary(aiDaysToStops(result.itinerary));
-    setAiMetadata({ destination: result.destination, budget: result.budget_estimate });
-  };
 
   const handleApplyMarkdown = (markdown: string) => {
     applyFromMarkdown(markdown);
@@ -409,7 +404,10 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
             >
               <Sparkles size={15} /> Generate AI Itinerary
             </button>
-            <button className="flex items-center gap-2 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-blue-100">
+            <button 
+              onClick={() => setShowMapModal(true)}
+              className="flex items-center gap-2 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-blue-100"
+            >
               <MapIcon size={16} /> Map View
             </button>
           </div>
@@ -517,6 +515,88 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
           )}
         </div>
       </div>
+      {/* Full Screen Map Modal */}
+      {showMapModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative w-[95vw] h-[90vh] bg-card border border-border/50 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
+            {/* Modal Header */}
+            <div className="absolute top-0 left-0 right-0 z-20 p-6 flex items-center justify-between bg-gradient-to-b from-black/50 to-transparent pointer-events-none">
+              <div className="flex items-center gap-4 pointer-events-auto">
+                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-xl">
+                  <MapIcon className="text-white" size={24} />
+                </div>
+                <div>
+                  <h2 className="font-heading font-black text-2xl text-white drop-shadow-lg leading-none">Trip Explorer</h2>
+                  <p className="text-white/70 text-sm font-bold mt-1 uppercase tracking-widest">{trip?.location}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowMapModal(false)}
+                className="pointer-events-auto w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 text-white transition-all transform hover:rotate-90"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Map Area */}
+            <div className="flex-1 relative">
+              <MapComponent
+                key={mapCenter.join(',')}
+                center={mapCenter}
+                zoom={12}
+                className="w-full h-full"
+              >
+                <MapControls position="bottom-right" />
+                {itineraryMarkers.map((marker, idx) => (
+                  <MapMarker key={marker.id} longitude={marker.lng} latitude={marker.lat}>
+                    <MarkerContent>
+                      <div className="relative group cursor-pointer scale-110">
+                        <div className="absolute inset-0 bg-indigo-500 rounded-full blur-md opacity-40 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative w-10 h-10 bg-white dark:bg-indigo-950 rounded-2xl rotate-45 border-2 border-indigo-600 shadow-2xl flex items-center justify-center transform group-hover:scale-110 group-hover:-translate-y-1 transition-all">
+                          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 -rotate-45">{idx + 1}</span>
+                        </div>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-indigo-900 border border-indigo-400/30 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 whitespace-nowrap pointer-events-none">
+                          {marker.title}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-indigo-900 rotate-45 -mt-1 border-r border-b border-indigo-400/30" />
+                        </div>
+                      </div>
+                    </MarkerContent>
+                    <MarkerPopup>
+                      <div className="p-5 bg-card min-w-[300px] rounded-3xl overflow-hidden shadow-2xl border border-border/50">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black">
+                                {idx + 1}
+                              </div>
+                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{marker.type}</span>
+                           </div>
+                           <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-lg shadow-indigo-500/30">{marker.time}</span>
+                        </div>
+                        <h4 className="font-heading font-black text-foreground text-xl mb-3 leading-tight">{marker.title}</h4>
+                        <div className="w-full h-px bg-gradient-to-r from-indigo-500/50 to-transparent mb-4" />
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium">This is your #{idx + 1} stop in {trip?.location}. Get ready for an amazing experience!</p>
+                      </div>
+                    </MarkerPopup>
+                  </MapMarker>
+                ))}
+              </MapComponent>
+
+              {/* Stats Legend overlay */}
+              <div className="absolute bottom-10 left-10 p-5 bg-card/80 backdrop-blur-xl border border-border/50 rounded-[2rem] shadow-2xl flex gap-6 z-10 animate-in slide-in-from-left-10 duration-500">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Stops</span>
+                  <span className="text-3xl font-black text-foreground tabular-nums">{itineraryMarkers.length}</span>
+                </div>
+                <div className="w-px h-10 bg-border/50" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Trip Coverage</span>
+                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{Math.min(100, Math.round((itineraryMarkers.length / (ctxItinerary.length * 3)) * 100))}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </DragDropContext>
   );
