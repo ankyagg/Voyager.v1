@@ -11,7 +11,12 @@ const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
  * @returns {Promise<object>} Structured itinerary JSON from the AI engine
  */
 export const generateItinerary = async (tripData) => {
-  const { city, days, budget, preferences } = tripData;
+  const { 
+    city, days, budget, preferences, 
+    group_preferences = {}, 
+    accepted_suggestions = [], 
+    participants_count = 1 
+  } = tripData;
 
   // Build the natural-language request the AI engine expects
   const prefStr = Array.isArray(preferences) && preferences.length
@@ -20,7 +25,12 @@ export const generateItinerary = async (tripData) => {
   const request = `Plan a ${days} day trip to ${city} under ${budget} INR ${prefStr}`.trim();
 
   try {
-    const response = await axios.post(`${AI_ENGINE_URL}/api/plan`, { request }, {
+    const response = await axios.post(`${AI_ENGINE_URL}/api/plan`, { 
+      request,
+      group_preferences,
+      accepted_suggestions,
+      participants_count
+    }, {
       timeout: 180_000, // 3 min — LLM can be slow on first call
     });
     return response.data;

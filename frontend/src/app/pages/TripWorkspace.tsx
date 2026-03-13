@@ -299,6 +299,7 @@ function TripOverview({ trip }: { trip: any }) {
   const { itinerary } = useItinerary();
   // Get markers and coordinates
   const { itineraryMarkers, mapCoords, baseCoords } = useItineraryMarkers(itinerary, trip?.location);
+  const nextActivities = itinerary.flatMap(day => day.stops).slice(0, 3);
   
   const [mapCenter, setMapCenter] = useState<[number, number]>([115.1889, -8.4095]);
 
@@ -402,20 +403,20 @@ function TripOverview({ trip }: { trip: any }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {itineraryMarkers.length > 0 ? (
-              itineraryMarkers.slice(0, 3).map((marker, idx) => (
-                <div key={marker.id} className="flex flex-col gap-4 p-5 rounded-2xl border border-indigo-200 dark:border-indigo-500/30 bg-gradient-to-br from-indigo-50 to-white dark:from-[#1E1E3F] dark:to-[#13132B] shadow-sm hover:-translate-y-1 transition-all duration-300">
+            {nextActivities.length > 0 ? (
+              nextActivities.map((stop, idx) => (
+                <div key={stop.id} className="flex flex-col gap-4 p-5 rounded-2xl border border-indigo-200 dark:border-indigo-500/30 bg-gradient-to-br from-indigo-50 to-white dark:from-[#1E1E3F] dark:to-[#13132B] shadow-sm hover:-translate-y-1 transition-all duration-300">
                   <div className="flex justify-between items-start">
                     <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-indigo-600/20">
                       {idx + 1}
                     </div>
                     <span className="px-2 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-500/20 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
-                      {marker.type}
+                      {stop.type}
                     </span>
                   </div>
                   <div>
-                    <h4 className="font-bold text-base leading-tight mb-1.5 text-indigo-900 dark:text-indigo-100 line-clamp-1">{marker.title}</h4>
-                    <p className="text-xs text-muted-foreground font-medium">{marker.time}</p>
+                    <h4 className="font-bold text-base leading-tight mb-1.5 text-indigo-900 dark:text-indigo-100 line-clamp-2">{stop.title}</h4>
+                    <p className="text-xs text-muted-foreground font-medium">{stop.time}</p>
                   </div>
                 </div>
               ))

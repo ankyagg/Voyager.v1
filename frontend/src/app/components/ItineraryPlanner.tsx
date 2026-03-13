@@ -5,6 +5,8 @@ import { Map as MapComponent, MapMarker, MarkerContent, MarkerPopup, MapControls
 import { chatWithAI } from "@/lib/aiApi";
 import { useItinerary } from "../contexts/ItineraryContext";
 import { useItineraryMarkers } from "../hooks/useItineraryMarkers";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
 type ItineraryStop = {
   id: string;
@@ -26,14 +28,16 @@ type ItineraryDay = {
 // ── AI Generate Panel ─────────────────────────────────────────────────────────
 interface AIPanelProps {
   trip?: any;
+  collabData: any;
   onApplyMarkdown: (markdown: string) => void;
   onClose: () => void;
 }
 
-function AIGeneratePanel({ trip, onApplyMarkdown, onClose }: AIPanelProps) {
-  const [city, setCity]               = useState("");
-  const [days, setDays]               = useState(3);
-  const [budget, setBudget]           = useState("20000");
+function AIGeneratePanel({ trip, collabData, onApplyMarkdown, onClose }: AIPanelProps) {
+  const { itinerary: currentItin } = useItinerary();
+  const [city, setCity]               = useState(trip?.location || "");
+  const [days, setDays]               = useState(trip?.duration || 3);
+  const [budget, setBudget]           = useState(trip?.budget?.total?.toString() || "25000");
   const [preferences, setPreferences] = useState("sightseeing, food, culture");
   const [isLoading, setIsLoading]     = useState(false);
   const [rawResponse, setRawResponse] = useState<string | null>(null);
@@ -46,20 +50,31 @@ function AIGeneratePanel({ trip, onApplyMarkdown, onClose }: AIPanelProps) {
     setRawResponse(null);
     try {
       // Build a rich, detailed prompt identical to what the chat sidebar sends
-      const prompt = `Plan a ${days}-day itinerary for ${city || "a destination"}.
+      const prompt = `CRITICAL: Plan a FULL ${days}-day itinerary for ${city || "a destination"}. 
+You MUST generate activities for EACH day from Day 1 to Day ${days}. Do NOT skip any days.
+
+Current Group Preferences: ${JSON.stringify(collabData.polls)}
+Accepted Suggestions: ${collabData.suggestions.join(", ")}
+Shared Notes Context: ${collabData.notes}
 Budget: ₹${budget} INR total.
 Interests: ${preferences}.
+`;
 
-Please write a detailed day-by-day travel plan. For each day, use the format:
-Day N: [Title]
-- Morning: [activity with brief description]
-- Afternoon: [activity with brief description]
-- Evening: [activity with brief description]
-- Budget: ₹[amount] for this day
-
-Include specific landmark names, local food recommendations, and practical tips. Make it feel personal and exciting!`;
-
-      const data = await chatWithAI({ message: prompt, context: trip ? { tripId: trip.id, destination: trip.location, budget: trip.budget?.total, travelers: (trip.participantIds?.length || 0) + 1, savedPlaces: trip.savedPlaces } : undefined });
+      const data = await chatWithAI({ 
+        message: prompt, 
+        context: trip ? { 
+          tripId: trip.id, 
+          destination: city, 
+          budget: budget, 
+          duration: days,
+          travelers: (trip.participantIds?.length || 0) + 1, 
+          savedPlaces: trip.savedPlaces,
+          sharedNotes: collabData.notes,
+          participantInterests: JSON.stringify(collabData.polls),
+          suggestions: collabData.suggestions,
+          currentItinerary: JSON.stringify(currentItin)
+        } : undefined 
+      });
       setRawResponse(data.reply);
       setShowPreview(true);
     } catch (err: unknown) {
@@ -206,10 +221,31 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
   const [itinerary, _setItinerary]          = useState<ItineraryDay[]>(ctxItinerary);
   const [showAIPanel, setShowAIPanel]       = useState(false);
   const [showMapModal, setShowMapModal]     = useState(false);
-  const [aiMetadata, setAiMetadata]         = useState<{ destination: string; budget: string } | null>(null);
+
   const [availablePlaces, setAvailablePlaces] = useState<ItineraryStop[]>([]);
   const { itineraryMarkers, mapCoords, baseCoords } = useItineraryMarkers(ctxItinerary, trip?.location || "");
   const [mapCenter, setMapCenter] = useState<[number, number]>([115.1889, -8.4095]);
+  const [collabData, setCollabData] = useState({
+    notes: "",
+    polls: {} as Record<string, number>,
+    suggestions: [] as string[]
+  });
+
+  useEffect(() => {
+    if (!trip?.id) return;
+    
+    // Subscribe to collaborative data
+    const unsubNotes = onSnapshot(doc(db, "trips", trip.id, "collab", "notes"), (s) => 
+      setCollabData(prev => ({ ...prev, notes: s.data()?.content || "" })));
+      
+    const unsubPolls = onSnapshot(doc(db, "trips", trip.id, "collab", "polls"), (s) => 
+      setCollabData(prev => ({ ...prev, polls: s.data()?.votes || {} })));
+      
+    const unsubSug = onSnapshot(doc(db, "trips", trip.id, "collab", "suggestions"), (s) => 
+      setCollabData(prev => ({ ...prev, suggestions: (s.data()?.items || []).filter((i:any) => i.accepted).map((i:any) => i.text) })));
+
+    return () => { unsubNotes(); unsubPolls(); unsubSug(); };
+  }, [trip?.id]);
 
   useEffect(() => {
     if (mapCoords) {
@@ -248,14 +284,7 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
   }, [trip?.savedPlaces, itinerary]); // Note: keeping itinerary as dependency means if we delete from it, it pops back to sidebar
 
 
-  const handleApplyMarkdown = (markdown: string) => {
-    applyFromMarkdown(markdown);
-    // try to auto-extract destination from markdown
-    const destMatch = markdown.match(/itinerary for ([\w\s,]+)\./i);
-    if (destMatch) {
-      setAiMetadata({ destination: destMatch[1].trim(), budget: "" });
-    }
-  };
+
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
@@ -328,8 +357,9 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
       {showAIPanel && (
         <AIGeneratePanel
           trip={trip}
-          onApplyMarkdown={handleApplyMarkdown}
-          onClose={() => setShowAIPanel(false)}
+          collabData={collabData}
+          onApplyMarkdown={(md) => applyFromMarkdown(md)} 
+          onClose={() => setShowAIPanel(false)} 
         />
       )}
 
@@ -390,9 +420,9 @@ export default function ItineraryPlanner({ trip }: { trip?: any }) {
             <h2 className="font-heading font-bold text-xl text-gray-900 flex items-center gap-2">
               <Calendar className="text-blue-600" size={24} /> Day-by-day Plan
             </h2>
-            {aiMetadata && (
+            {trip?.location && (
               <span className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
-                <Sparkles size={11} /> AI: {aiMetadata.destination} · {aiMetadata.budget}
+                <Sparkles size={11} /> {trip.location} · {trip.budget?.total ? `₹${trip.budget.total.toLocaleString()}` : "Budgeting..."}
               </span>
             )}
           </div>

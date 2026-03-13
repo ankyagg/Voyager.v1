@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Plus, Trash2, DollarSign, X } from "lucide-react";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Expense {
   id: string;
@@ -16,9 +17,12 @@ interface Expense {
 
 export default function BudgetTracker() {
   const { tripId } = useParams();
-  const [totalBudget, setTotalBudget] = useState(6000);
+  const { dbUser } = useAuth();
+  const [totalBudget, setTotalBudget] = useState(25000); // Default placeholder
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currency, setCurrency] = useState("₹");
+  const [isEstimated, setIsEstimated] = useState(false);
   const [newExpense, setNewExpense] = useState({ name: "", category: "Food & Drinks", amount: "" });
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -35,6 +39,8 @@ export default function BudgetTracker() {
         }
         if (data.budget?.total) {
           setTotalBudget(data.budget.total);
+          setCurrency(data.budget.currency === "USD" ? "$" : "₹");
+          setIsEstimated(!!data.budget.lastUpdated); // If it has a timestamp, the AI/System set it
         }
       }
     });
@@ -50,7 +56,7 @@ export default function BudgetTracker() {
       category: newExpense.category,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       amount: parseFloat(newExpense.amount),
-      paidBy: "Me"
+      paidBy: dbUser?.displayName || "Explorer"
     };
     
     const updatedExpenses = [...expenses, expense];
@@ -117,12 +123,14 @@ export default function BudgetTracker() {
           <div className="bg-white p-6 rounded-[1.25rem] shadow-sm border border-gray-100">
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2 text-gray-400 font-bold uppercase tracking-wider">
-                <span>Total Budget</span>
-                <span className="text-gray-900">${totalBudget.toLocaleString()}</span>
+                <span className="flex items-center gap-2">
+                  Total Budget {isEstimated && <span className="text-[10px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded">AI Estimated</span>}
+                </span>
+                <span className="text-gray-900">{currency}{totalBudget.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-end mb-4">
-                <span className="text-4xl font-bold text-gray-900">${totalSpent.toLocaleString()}</span>
-                <span className="text-sm font-medium text-gray-400 mb-1">{(totalBudget - totalSpent).toLocaleString()} left</span>
+                <span className="text-4xl font-bold text-gray-900">{currency}{totalSpent.toLocaleString()}</span>
+                <span className="text-sm font-medium text-gray-400 mb-1">{currency}{(totalBudget - totalSpent).toLocaleString()} left</span>
               </div>
               
               <div className="relative h-4 w-full bg-gray-100 rounded-full overflow-hidden">
@@ -146,7 +154,7 @@ export default function BudgetTracker() {
                       <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val) => `$${val}`} />
+                  <Tooltip formatter={(val) => `${currency}${val}`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -179,7 +187,8 @@ export default function BudgetTracker() {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-gray-400 font-medium">{expense.date}</td>
-                      <td className="py-4 px-6 font-bold text-gray-900 text-right">${expense.amount.toLocaleString()}</td>
+                      <td className="py-4 px-6 text-gray-500 font-medium">by {expense.paidBy}</td>
+                      <td className="py-4 px-6 font-bold text-gray-900 text-right">{currency}{expense.amount.toLocaleString()}</td>
                       <td className="py-4 px-6 text-right">
                         <button 
                           onClick={() => removeExpense(expense.id)}
@@ -231,7 +240,7 @@ export default function BudgetTracker() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Amount ($)</label>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Amount ({currency})</label>
                   <input 
                     type="number" 
                     value={newExpense.amount}

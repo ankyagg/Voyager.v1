@@ -31,7 +31,12 @@ export interface ChatRequest {
     destination?: string;
     travelers?: string;
     budget?: string;
+    duration?: number;
     savedPlaces?: number[];
+    sharedNotes?: string;
+    participantInterests?: string;
+    suggestions?: string[];
+    currentItinerary?: string;
   };
 }
 

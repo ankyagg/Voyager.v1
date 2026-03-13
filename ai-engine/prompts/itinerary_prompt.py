@@ -50,9 +50,10 @@ Weather & tips:
 
 Your task:
 - Create a realistic day-by-day itinerary for exactly {duration_days} days.
-- Distribute activities evenly across days, ensuring a balance between sightseeing and rest.
-- Respect the travel style ({travel_style}) and the {budget} budget constraint implicitly.
-- Each day must have 2 to 4 appropriate activities drawn from the attractions and knowledge above.
+- **Collaborative Balance**: Ensure preferences from "{preferences}" are balanced fairly.
+- **Efficiency**: Group nearby attractions together in the same time blocks to avoid unrealistic travel distances.
+- **Realistic Pacing**: Distribute activities evenly (2-4 per day) and avoid overcrowding.
+- **Saved Places**: Prioritize any places specifically mentioned in the attractions or knowledge list that the user has expressed interest in.
 - Use the retrieved travel knowledge (if provided) to include authentic local experiences.
 - Day 1 should include arrival and orientation. Last day should include departure.
 - Do NOT repeat the same attraction across multiple days.
