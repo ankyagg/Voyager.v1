@@ -51,9 +51,10 @@ Whether you're planning a solo adventure or coordinating a group trip with frien
 - **Split Billing** — Equal, shares-based, or percentage-based expense splitting among participants
 - **Budget Estimates** — AI-generated categorized budget breakdowns for planned trips
 
-### 🔐 Authentication & User Management
+### 🔐 Authentication & Data
 - **Firebase Auth** — Email/password and Google sign-in
-- **User Profiles** — Persistent user data with Firestore
+- **Cloud Firestore** — Primary database for all app data (users, trips, itineraries, expenses, messages, destinations)
+- **User Profiles** — Persistent user data stored in Firestore
 - **Protected Routes** — Auth-gated dashboard and trip pages
 
 ### 🎨 UI/UX
@@ -89,8 +90,7 @@ Whether you're planning a solo adventure or coordinating a group trip with frien
 |---|---|
 | **Node.js + Express 5** | REST API server |
 | **Socket.IO** | WebSocket server for real-time events |
-| **PostgreSQL + Sequelize** | Relational data storage |
-| **MongoDB + Mongoose** | Document data storage |
+| **Firebase / Firestore** | Primary database (accessed from frontend SDK) |
 | **Axios** | HTTP client (AI engine proxy) |
 | **Helmet** | Security headers |
 | **Morgan** | HTTP request logging |
@@ -124,10 +124,10 @@ Whether you're planning a solo adventure or coordinating a group trip with frien
 │         │              │  .IO    │          │  (LLM)    │       │
 │         │              └─────────┘          └─────┬─────┘       │
 │         │                                         │             │
-│  ┌──────┴───────┐    ┌─────────────┐       ┌──────┴──────┐      │
-│  │   Firebase    │    │  PostgreSQL │       │  ChromaDB   │      │
-│  │  Auth + DB    │    │  + MongoDB  │       │  (Vectors)  │      │
-│  └──────────────┘    └─────────────┘       └─────────────┘      │
+│  ┌──────┴───────┐                          ┌──────┴──────┐      │
+│  │   Firebase    │                          │  ChromaDB   │      │
+│  │ Auth + Firestore│                        │  (Vectors)  │      │
+│  └──────────────┘                          └─────────────┘      │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -256,8 +256,7 @@ Voyager/
 | **Node.js** | v18+ |
 | **Python** | v3.10+ |
 | **Ollama** | Latest |
-| **PostgreSQL** | v14+ |
-| **MongoDB** | v6+ |
+| **Firebase Project** | With Firestore & Auth enabled |
 
 ### 1. Clone the Repository
 
@@ -283,8 +282,6 @@ VITE_BACKEND_URL=http://localhost:5000
 **Backend** (`backend/.env`):
 ```env
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/voyager
-POSTGRES_URI=postgresql://user:password@localhost:5432/voyager
 AI_ENGINE_URL=http://localhost:8000
 ```
 
